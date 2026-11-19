@@ -1,5 +1,19 @@
 import * as Haptics from 'expo-haptics';
 
+// Sound asset mapping
+const SOUNDS = {
+  mark: require('../../assets/sounds/mark.wav'),
+  clear: require('../../assets/sounds/clear.wav'),
+  animal: require('../../assets/sounds/animal.wav'),
+  error: require('../../assets/sounds/error.wav'),
+  undo: require('../../assets/sounds/undo.wav'),
+  hint: require('../../assets/sounds/hint.wav'),
+  win: require('../../assets/sounds/win.wav'),
+  click: require('../../assets/sounds/click.wav'),
+};
+
+type SoundKey = keyof typeof SOUNDS;
+
 // Safe dynamic require so Expo Go never throws a blue screen if native audio is missing
 let AudioModule: any = null;
 try {
@@ -8,22 +22,90 @@ try {
   AudioModule = null;
 }
 
+let isAudioConfigured = false;
+function ensureAudioMode() {
+  if (isAudioConfigured || !AudioModule?.setAudioModeAsync) return;
+  try {
+    AudioModule.setAudioModeAsync({
+      playsInSilentMode: true,
+    }).catch(() => {});
+    isAudioConfigured = true;
+  } catch {}
+}
+
+// Pool of players to allow fast overlapping sound triggers
+const playerPools: Partial<Record<SoundKey, any[]>> = {};
+const poolIndices: Partial<Record<SoundKey, number>> = {};
+
+function playSound(key: SoundKey, poolSize: number = 1) {
+  if (!AudioModule?.createAudioPlayer) return;
+
+  ensureAudioMode();
+
+  try {
+    if (!playerPools[key]) {
+      playerPools[key] = [];
+      poolIndices[key] = 0;
+      for (let i = 0; i < poolSize; i++) {
+        try {
+          const player = AudioModule.createAudioPlayer(SOUNDS[key]);
+          if (player) {
+            playerPools[key]!.push(player);
+          }
+        } catch {}
+      }
+    }
+
+    const pool = playerPools[key];
+    if (!pool || pool.length === 0) return;
+
+    const idx = (poolIndices[key] ?? 0) % pool.length;
+    poolIndices[key] = (idx + 1) % pool.length;
+
+    const player = pool[idx];
+    if (player) {
+      try {
+        const seekRes = player.seekTo(0);
+        if (seekRes && typeof seekRes.then === 'function') {
+          seekRes.then(() => {
+            player.play();
+          }).catch(() => {
+            player.play();
+          });
+        } else {
+          player.play();
+        }
+      } catch {
+        try {
+          player.play();
+        } catch {}
+      }
+    }
+  } catch {}
+}
+
 export const Feedback = {
-  // Cell tapped -> Mark placed
+  // Cell tapped -> Mark placed (e.g. ✕)
   mark(hapticsEnabled: boolean = true, soundEnabled: boolean = true) {
     if (hapticsEnabled) {
       try {
         Haptics.selectionAsync().catch(() => {});
       } catch {}
     }
+    if (soundEnabled) {
+      playSound('mark', 3);
+    }
   },
 
-  // Cell tapped -> Animal placed correctly
+  // Cell tapped -> Animal placed correctly (Pet queen placed)
   correctAnimal(hapticsEnabled: boolean = true, soundEnabled: boolean = true) {
     if (hapticsEnabled) {
       try {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       } catch {}
+    }
+    if (soundEnabled) {
+      playSound('animal', 2);
     }
   },
 
@@ -34,6 +116,9 @@ export const Feedback = {
         Haptics.selectionAsync().catch(() => {});
       } catch {}
     }
+    if (soundEnabled) {
+      playSound('clear', 2);
+    }
   },
 
   // Wrong animal placed (Error / Lost heart)
@@ -42,6 +127,9 @@ export const Feedback = {
       try {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       } catch {}
+    }
+    if (soundEnabled) {
+      playSound('error', 1);
     }
   },
 
@@ -52,6 +140,9 @@ export const Feedback = {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       } catch {}
     }
+    if (soundEnabled) {
+      playSound('undo', 1);
+    }
   },
 
   // Hint button pressed
@@ -60,6 +151,9 @@ export const Feedback = {
       try {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
       } catch {}
+    }
+    if (soundEnabled) {
+      playSound('hint', 1);
     }
   },
 
@@ -70,6 +164,9 @@ export const Feedback = {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       } catch {}
     }
+    if (soundEnabled) {
+      playSound('win', 1);
+    }
   },
 
   // Generic button press
@@ -78,6 +175,9 @@ export const Feedback = {
       try {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
       } catch {}
+    }
+    if (soundEnabled) {
+      playSound('click', 1);
     }
   },
 };
