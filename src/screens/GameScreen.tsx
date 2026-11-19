@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { GameActions } from '../components/GameActions';
 import { GameHUD } from '../components/GameHUD';
 import { GameOverModal } from '../components/GameOverModal';
@@ -11,12 +12,14 @@ import { useProfileStore } from '../state/profileStore';
 
 interface GameScreenProps {
   onBackToHome: () => void;
+  onOpenSettings?: () => void;
 }
 
-export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome }) => {
+export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSettings }) => {
   const pet = useProfileStore((state) => state.pet) || 'cat';
   const autoMark = useProfileStore((state) => state.settings.autoMark);
   const currentLevel = useProfileStore((state) => state.currentLevel);
+  const totalScore = useProfileStore((state) => state.stats.totalScore);
   const advanceLevel = useProfileStore((state) => state.advanceLevel);
   const addReward = useProfileStore((state) => state.addReward);
   const recordGameResult = useProfileStore((state) => state.recordGameResult);
@@ -87,7 +90,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome }) => {
       });
       setWinRecordInfo(record);
 
-      // Reward pet
       const rewardId = pet === 'cat' ? 'mouse' : pet === 'dog' ? 'bone' : 'carrot';
       addReward(rewardId, 1);
     }
@@ -116,14 +118,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header HUD */}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Top Header HUD */}
       <GameHUD
         level={currentLevel}
-        size={puzzle.size}
+        score={totalScore}
         lives={lives}
-        seconds={elapsedSeconds}
+        maxLives={3}
+        pet={pet}
         onExit={onBackToHome}
+        onSettings={onOpenSettings}
       />
 
       {/* Main Grid Area */}
@@ -146,15 +150,25 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome }) => {
         )}
       </View>
 
-      {/* Bottom Controls */}
+      {/* Bottom Floating Action Controls */}
       <GameActions
+        pet={pet}
         canUndo={undoStack.length > 0 && !isWon && !isGameOver}
         hintsLeft={hintsLeft}
-        canAdHint={!adHintUsed}
         onUndo={undo}
         onHint={useHint}
-        onAdHint={addRewardHint}
+        onPetAction={() => {}}
+        onRewardAction={addRewardHint}
       />
+
+      {/* Bottom Banner Area (as seen in screenshot) */}
+      <View style={styles.bottomBanner}>
+        <View style={styles.bannerInner}>
+          <Text style={styles.bannerBrand}>PedSudoku</Text>
+          <Text style={styles.bannerAdLabel}>AD</Text>
+          <Text style={styles.bannerText}>DenizBank • 100.000 TL Nakit Fırsatı!</Text>
+        </View>
+      </View>
 
       {/* Win Modal */}
       <ResultModal
@@ -190,27 +204,59 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FAF5FF',
+    backgroundColor: '#FBF7F2',
     justifyContent: 'space-between',
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 4,
   },
   errorBanner: {
     backgroundColor: '#FED7D7',
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 16,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#FEB2B2',
   },
   errorText: {
     color: '#C53030',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
+  },
+  bottomBanner: {
+    height: 56,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E8E1D5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bannerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bannerBrand: {
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#005696',
+  },
+  bannerAdLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#A0AEC0',
+    borderWidth: 1,
+    borderColor: '#CBD5E0',
+    borderRadius: 3,
+    paddingHorizontal: 3,
+  },
+  bannerText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2D3748',
   },
 });

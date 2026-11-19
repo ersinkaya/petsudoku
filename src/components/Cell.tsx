@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity } from 'react-native';
-import { PET_CONFIGS, REGION_COLORS, REGION_SYMBOLS } from '../assets/petConfig';
+import { PET_CONFIGS, REGION_COLORS } from '../assets/petConfig';
 import { CellState, Pet } from '../engine/types';
 
 interface CellProps {
@@ -9,13 +9,9 @@ interface CellProps {
   state: CellState;
   region: number;
   pet: Pet;
-  size: number;
   cellSize: number;
   isHinted?: boolean;
   isError?: boolean;
-  showSymbols?: boolean;
-  borderRight: boolean;
-  borderBottom: boolean;
   onPress: (row: number, col: number) => void;
 }
 
@@ -25,17 +21,14 @@ export const Cell: React.FC<CellProps> = ({
   state,
   region,
   pet,
-  size,
   cellSize,
   isHinted,
   isError,
-  showSymbols = false,
-  borderRight,
-  borderBottom,
   onPress,
 }) => {
   const bgColor = REGION_COLORS[region % REGION_COLORS.length];
   const petItem = PET_CONFIGS[pet] || PET_CONFIGS.cat;
+  const borderRadius = Math.max(5, Math.floor(cellSize * 0.18));
 
   return (
     <TouchableOpacity
@@ -47,31 +40,22 @@ export const Cell: React.FC<CellProps> = ({
           width: cellSize,
           height: cellSize,
           backgroundColor: bgColor,
-          borderRightWidth: borderRight ? 2 : 0.5,
-          borderBottomWidth: borderBottom ? 2 : 0.5,
-          borderRightColor: borderRight ? '#4A5568' : 'rgba(0,0,0,0.06)',
-          borderBottomColor: borderBottom ? '#4A5568' : 'rgba(0,0,0,0.06)',
+          borderRadius,
         },
         isHinted && styles.hintedCell,
         isError && styles.errorCell,
       ]}
     >
-      {/* Optional accessibility region symbol in corner */}
-      {showSymbols && (
-        <Text style={styles.regionSymbol}>
-          {REGION_SYMBOLS[region % REGION_SYMBOLS.length]}
-        </Text>
-      )}
-
-      {/* Cell Content */}
+      {/* Animal placed */}
       {state === 'animal' && (
-        <Text style={[styles.animalEmoji, { fontSize: cellSize * 0.55 }]}>
+        <Text style={[styles.animalEmoji, { fontSize: cellSize * 0.6 }]}>
           {petItem.emoji}
         </Text>
       )}
 
+      {/* Mark (X) */}
       {state === 'mark' && (
-        <Text style={[styles.markText, { fontSize: cellSize * 0.4 }]}>✕</Text>
+        <Text style={[styles.markText, { fontSize: cellSize * 0.45 }]}>✕</Text>
       )}
     </TouchableOpacity>
   );
@@ -81,31 +65,29 @@ const styles = StyleSheet.create({
   cell: {
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
   },
   hintedCell: {
-    backgroundColor: '#FEFCBF',
-    borderColor: '#D69E2E',
-    borderWidth: 2.5,
+    borderWidth: 3,
+    borderColor: '#F6E05E',
+    shadowColor: '#ECC94B',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
+    elevation: 4,
   },
   errorCell: {
-    backgroundColor: '#FED7D7',
+    borderWidth: 3,
     borderColor: '#E53E3E',
-    borderWidth: 2.5,
-  },
-  regionSymbol: {
-    position: 'absolute',
-    top: 2,
-    left: 3,
-    fontSize: 9,
-    fontWeight: '700',
-    color: 'rgba(0,0,0,0.2)',
+    backgroundColor: '#FC8181',
   },
   animalEmoji: {
     textAlign: 'center',
   },
   markText: {
-    color: '#718096',
-    fontWeight: 'bold',
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '900',
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 1,
   },
 });

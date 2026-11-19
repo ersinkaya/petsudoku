@@ -1,53 +1,84 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { PET_CONFIGS } from '../assets/petConfig';
+import { Pet } from '../engine/types';
 
 interface GameActionsProps {
+  pet: Pet;
   canUndo: boolean;
   hintsLeft: number;
-  canAdHint: boolean;
   onUndo: () => void;
   onHint: () => void;
-  onAdHint: () => void;
+  onPetAction?: () => void;
+  onRewardAction?: () => void;
 }
 
 export const GameActions: React.FC<GameActionsProps> = ({
+  pet,
   canUndo,
   hintsLeft,
-  canAdHint,
   onUndo,
   onHint,
-  onAdHint,
+  onPetAction,
+  onRewardAction,
 }) => {
+  const petItem = PET_CONFIGS[pet] || PET_CONFIGS.cat;
+
   return (
     <View style={styles.container}>
-      {/* Undo Button */}
+      {/* 1. Pet / Auto-action Button */}
       <TouchableOpacity
-        style={[styles.actionBtn, !canUndo && styles.disabledBtn]}
-        onPress={onUndo}
-        disabled={!canUndo}
-        activeOpacity={0.7}
+        style={styles.circleBtn}
+        onPress={onPetAction}
+        activeOpacity={0.75}
       >
-        <Text style={styles.btnEmoji}>↩️</Text>
-        <Text style={[styles.btnText, !canUndo && styles.disabledText]}>Geri Al</Text>
+        <Text style={styles.mainEmoji}>{petItem.emoji}</Text>
+        <View style={styles.adBadge}>
+          <Text style={styles.playIcon}>▶</Text>
+        </View>
       </TouchableOpacity>
 
-      {/* Hint Button */}
-      {hintsLeft > 0 ? (
-        <TouchableOpacity style={styles.actionBtn} onPress={onHint} activeOpacity={0.7}>
-          <Text style={styles.btnEmoji}>💡</Text>
-          <Text style={styles.btnText}>İpucu ({hintsLeft})</Text>
-        </TouchableOpacity>
-      ) : canAdHint ? (
-        <TouchableOpacity style={[styles.actionBtn, styles.adHintBtn]} onPress={onAdHint} activeOpacity={0.7}>
-          <Text style={styles.btnEmoji}>🎬</Text>
-          <Text style={styles.btnText}>+1 İpucu</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity style={[styles.actionBtn, styles.disabledBtn]} disabled activeOpacity={1}>
-          <Text style={styles.btnEmoji}>💡</Text>
-          <Text style={[styles.btnText, styles.disabledText]}>İpucu (0)</Text>
-        </TouchableOpacity>
-      )}
+      {/* 2. Hint / Lightbulb Button */}
+      <TouchableOpacity
+        style={styles.circleBtn}
+        onPress={onHint}
+        activeOpacity={0.75}
+      >
+        <Text style={styles.mainEmoji}>💡</Text>
+        <View style={styles.adBadge}>
+          <Text style={styles.playIcon}>▶</Text>
+        </View>
+        {hintsLeft > 0 && (
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{hintsLeft}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      {/* 3. Reward / Treat Button */}
+      <TouchableOpacity
+        style={styles.circleBtn}
+        onPress={onRewardAction}
+        activeOpacity={0.75}
+      >
+        <Text style={styles.mainEmoji}>{petItem.rewardEmoji}</Text>
+        <View style={styles.adBadge}>
+          <Text style={styles.playIcon}>▶</Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* 4. Undo Button */}
+      <TouchableOpacity
+        style={[styles.circleBtn, !canUndo && styles.disabledBtn]}
+        onPress={onUndo}
+        disabled={!canUndo}
+        activeOpacity={0.75}
+      >
+        <Text style={[styles.mainEmoji, !canUndo && styles.disabledEmoji]}>↩️</Text>
+        <View style={[styles.adBadge, !canUndo && styles.disabledBadge]}>
+          <Text style={styles.playIcon}>▶</Text>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -55,48 +86,78 @@ export const GameActions: React.FC<GameActionsProps> = ({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 20,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-  },
-  actionBtn: {
-    flex: 1,
-    flexDirection: 'row',
+    justifyContent: 'space-around',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: '#CBD5E0',
+    paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  adHintBtn: {
-    backgroundColor: '#FFFBEB',
-    borderColor: '#F59E0B',
+  circleBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
+    borderWidth: 1.5,
+    borderColor: '#EFE9DE',
+    position: 'relative',
   },
   disabledBtn: {
-    opacity: 0.45,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F7FAFC',
+    opacity: 0.5,
     shadowOpacity: 0,
     elevation: 0,
   },
-  btnEmoji: {
-    fontSize: 18,
+  mainEmoji: {
+    fontSize: 28,
   },
-  btnText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#2D3748',
+  disabledEmoji: {
+    opacity: 0.4,
   },
-  disabledText: {
-    color: '#A0AEC0',
+  adBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#38A169',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+    elevation: 2,
+  },
+  disabledBadge: {
+    backgroundColor: '#A0AEC0',
+  },
+  playIcon: {
+    fontSize: 9,
+    color: '#FFFFFF',
+    fontWeight: '900',
+    marginLeft: 1,
+  },
+  countBadge: {
+    position: 'absolute',
+    bottom: -2,
+    left: -2,
+    backgroundColor: '#ED8936',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#FFFFFF',
+  },
+  countText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#FFFFFF',
   },
 });

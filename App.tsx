@@ -39,7 +39,10 @@ export default function App() {
       )}
 
       {currentScreen === 'game' && (
-        <GameScreen onBackToHome={() => setCurrentScreen('home')} />
+        <GameScreen
+          onBackToHome={() => setCurrentScreen('home')}
+          onOpenSettings={() => setCurrentScreen('settings')}
+        />
       )}
 
       {currentScreen === 'records' && (
