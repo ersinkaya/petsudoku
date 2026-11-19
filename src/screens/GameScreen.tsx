@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GameActions } from '../components/GameActions';
@@ -56,6 +56,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const [winRecordInfo, setWinRecordInfo] = useState<{ isNewHighScore: boolean; isNewBestTime: boolean } | null>(null);
   const [calculatedScore, setCalculatedScore] = useState<number>(0);
 
+  // Debounce & double-tap tracking refs
+  const lastTapRef = useRef<{ row: number; col: number; time: number }>({
+    row: -1,
+    col: -1,
+    time: 0,
+  });
+  const lastUndoRef = useRef<number>(0);
+
   // Start new game on mount if level changed or empty
   useEffect(() => {
     initNewGame(currentLevel);
@@ -105,7 +113,28 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
       clearActiveHint();
     }
 
-    const res = handleCellTap(row, col, autoMark);
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapRef.current.time;
+    const isSameCell = lastTapRef.current.row === row && lastTapRef.current.col === col;
+
+    // Ignore electrical bounce/jitter under 70ms
+    if (isSameCell && timeSinceLastTap < 70) {
+      return;
+    }
+
+    const currentCell = cells[row]?.[col] ?? 'empty';
+    let res;
+
+    // Check if quick double-tap on same cell to place animal:
+    if (isSameCell && timeSinceLastTap < 350 && currentCell === 'mark') {
+      lastTapRef.current = { row: -1, col: -1, time: 0 };
+      res = handleCellTap(row, col, 'place_animal', autoMark);
+    } else {
+      // Single tap: safe toggle (empty -> mark, mark -> empty, animal -> empty)
+      lastTapRef.current = { row, col, time: now };
+      res = handleCellTap(row, col, 'toggle', autoMark);
+    }
+
     if (res.status === 'mark') {
       Feedback.mark(hapticsEnabled, soundEnabled);
     } else if (res.status === 'animal_correct') {
@@ -119,7 +148,28 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     }
   };
 
+  const onCellLongPress = (row: number, col: number) => {
+    if (activeHintCell) {
+      clearActiveHint();
+    }
+    // Long press directly attempts to place animal
+    const res = handleCellTap(row, col, 'place_animal', autoMark);
+    if (res.status === 'animal_correct') {
+      Feedback.correctAnimal(hapticsEnabled, soundEnabled);
+    } else if (res.status === 'animal_wrong') {
+      Feedback.error(hapticsEnabled, soundEnabled);
+      setLastErrorCell({ row, col });
+      setTimeout(() => setLastErrorCell(null), 1200);
+    }
+  };
+
   const handleUndo = () => {
+    const now = Date.now();
+    if (now - lastUndoRef.current < 250) {
+      return; // prevent duplicate rapid clicks
+    }
+    lastUndoRef.current = now;
+
     const success = undo();
     if (success) {
       Feedback.undo(hapticsEnabled, soundEnabled);
@@ -180,6 +230,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
             activeHintCell={activeHintCell}
             lastErrorCell={lastErrorCell}
             onCellPress={onCellPress}
+            onCellLongPress={onCellLongPress}
           />
         )}
       </View>

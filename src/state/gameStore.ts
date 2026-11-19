@@ -4,6 +4,8 @@ import { getNextLogicalHint } from '../engine/techniques';
 import { Action, CellCoord, CellState, ConflictDetail, GameState, Puzzle } from '../engine/types';
 import { findConflicts, isCorrectPlacement, isSolved } from '../engine/validator';
 
+export type TapMode = 'cycle' | 'toggle' | 'place_animal';
+
 export interface GameStoreState extends GameState {
   isWon: boolean;
   isGameOver: boolean;
@@ -14,7 +16,12 @@ export interface GameStoreState extends GameState {
   // Actions
   initNewGame: (level: number, size?: number, seed?: number) => void;
   loadSavedGame: (saved: GameState) => void;
-  handleCellTap: (row: number, col: number, autoMarkEnabled?: boolean) => {
+  handleCellTap: (
+    row: number,
+    col: number,
+    mode?: TapMode,
+    autoMarkEnabled?: boolean
+  ) => {
     status: 'noop' | 'mark' | 'animal_correct' | 'animal_wrong' | 'cleared';
     conflicts?: ConflictDetail[];
   };
@@ -94,7 +101,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
   },
 
-  handleCellTap: (row: number, col: number, autoMarkEnabled: boolean = false) => {
+  handleCellTap: (
+    row: number,
+    col: number,
+    mode: TapMode = 'cycle',
+    autoMarkEnabled: boolean = false
+  ) => {
     const state = get();
     if (state.isWon || state.isGameOver) {
       return { status: 'noop' };
@@ -103,19 +115,31 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const current = state.cells[row][col];
     let nextState: CellState = 'empty';
 
-    // Cycle: empty -> mark -> animal -> empty
-    if (current === 'empty') {
-      nextState = 'mark';
-    } else if (current === 'mark') {
+    if (mode === 'place_animal') {
+      // Direct intent to place animal (double tap or long press)
       nextState = 'animal';
+    } else if (mode === 'toggle') {
+      // Safe toggle mode: empty -> mark, mark -> empty, animal -> empty
+      if (current === 'empty') {
+        nextState = 'mark';
+      } else {
+        nextState = 'empty';
+      }
     } else {
-      nextState = 'empty';
+      // Classic cycle: empty -> mark -> animal -> empty
+      if (current === 'empty') {
+        nextState = 'mark';
+      } else if (current === 'mark') {
+        nextState = 'animal';
+      } else {
+        nextState = 'empty';
+      }
     }
 
     // Clone cells matrix
     const newCells = state.cells.map((r) => [...r]);
 
-    // Handle MARK or CLEAR (free, no penalty)
+    // Handle MARK or CLEAR (free, zero penalty)
     if (nextState === 'mark' || nextState === 'empty') {
       newCells[row][col] = nextState;
       const newUndoStack: Action[] = [
@@ -145,7 +169,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       const remainingLives = state.lives - 1;
       const isGameOver = remainingLives <= 0;
 
-      // Find visible conflicts for tutorial/easy level explanations
       const conflicts = findConflicts(state.puzzle, state.cells, { row, col });
 
       set({

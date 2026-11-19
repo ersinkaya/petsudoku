@@ -13,6 +13,7 @@ interface CellProps {
   isHinted?: boolean;
   isError?: boolean;
   onPress: (row: number, col: number) => void;
+  onLongPress?: (row: number, col: number) => void;
 }
 
 export const Cell: React.FC<CellProps> = ({
@@ -25,6 +26,7 @@ export const Cell: React.FC<CellProps> = ({
   isHinted,
   isError,
   onPress,
+  onLongPress,
 }) => {
   const bgColor = REGION_COLORS[region % REGION_COLORS.length];
   const petItem = PET_CONFIGS[pet] || PET_CONFIGS.cat;
@@ -34,6 +36,8 @@ export const Cell: React.FC<CellProps> = ({
     <TouchableOpacity
       activeOpacity={0.6}
       onPress={() => onPress(row, col)}
+      onLongPress={onLongPress ? () => onLongPress(row, col) : undefined}
+      delayLongPress={280}
       style={[
         styles.cell,
         {

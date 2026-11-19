@@ -11,6 +11,7 @@ interface GridProps {
   activeHintCell: CellCoord | null;
   lastErrorCell?: CellCoord | null;
   onCellPress: (row: number, col: number) => void;
+  onCellLongPress?: (row: number, col: number) => void;
 }
 
 export const Grid: React.FC<GridProps> = ({
@@ -20,6 +21,7 @@ export const Grid: React.FC<GridProps> = ({
   activeHintCell,
   lastErrorCell,
   onCellPress,
+  onCellLongPress,
 }) => {
   const n = puzzle.size;
   const screenWidth = Dimensions.get('window').width;
@@ -93,6 +95,7 @@ export const Grid: React.FC<GridProps> = ({
                     isHinted={isHinted}
                     isError={isError}
                     onPress={onCellPress}
+                    onLongPress={onCellLongPress}
                   />
                 );
               })}
