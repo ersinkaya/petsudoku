@@ -8,12 +8,14 @@ describe('Toplu Üretim ve Kalite Doğrulaması (Aşama 1 Kabul Kriterleri)', ()
     for (const size of sizes) {
       let totalTime = 0;
 
+      const techCounts: Record<number, number> = {};
       for (let i = 0; i < puzzlesPerSize; i++) {
         const seed = size * 10000 + i * 37 + 7;
         const start = Date.now();
         const puzzle = generatePuzzle({ size, seed });
         const elapsed = Date.now() - start;
         totalTime += elapsed;
+        techCounts[puzzle.difficulty.maxTechnique] = (techCounts[puzzle.difficulty.maxTechnique] || 0) + 1;
 
         // 1. Tek çözüm garantisi
         expect(countSolutions(size, puzzle.regions, 2)).toBe(1);
@@ -29,6 +31,7 @@ describe('Toplu Üretim ve Kalite Doğrulaması (Aşama 1 Kabul Kriterleri)', ()
       }
 
       const avgTime = totalTime / puzzlesPerSize;
+      console.log(`Size ${size}x${size} avgTime=${avgTime.toFixed(1)}ms techniques=`, techCounts);
       // Ortalama üretim süresi 1 saniyenin çok altında olmalı (hedef: < 1000ms, genellikle < 50ms)
       expect(avgTime).toBeLessThan(500);
     }

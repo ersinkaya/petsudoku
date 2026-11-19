@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PET_CONFIGS } from '../assets/petConfig';
 import { DifficultyLevel } from '../engine/types';
 import {
   DIFFICULTY_CONFIG,
-  getLevelConfig,
+  DIFFICULTY_UNLOCK_LEVELS,
+  getDifficultyForLevel,
+  isDifficultyUnlocked,
   useGameStore,
 } from '../state/gameStore';
 import { useProfileStore } from '../state/profileStore';
@@ -18,7 +27,6 @@ interface HomeScreenProps {
   onOpenSettings: () => void;
 }
 
-const SIZES = [5, 6, 7, 8, 9];
 const DIFFICULTIES: DifficultyLevel[] = ['easy', 'medium', 'hard', 'master'];
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -37,33 +45,47 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const initNewGame = useGameStore((state) => state.initNewGame);
 
-  // Custom Quick Play Selections
-  const [selectedSize, setSelectedSize] = useState<number>(7);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>('medium');
+  // Active selection for Quick Play (defaults to player's current campaign difficulty)
+  const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>(() =>
+    getDifficultyForLevel(currentLevel)
+  );
 
   const petInfo = PET_CONFIGS[pet];
   const petRewardCount = rewards[petInfo.rewardId] || 0;
 
-  const campaignCfg = getLevelConfig(currentLevel);
-  const campaignDiffInfo = DIFFICULTY_CONFIG[campaignCfg.difficulty];
+  const campaignDiffKey = getDifficultyForLevel(currentLevel);
+  const campaignDiffInfo = DIFFICULTY_CONFIG[campaignDiffKey];
   const selectedDiffInfo = DIFFICULTY_CONFIG[selectedDifficulty];
 
+  // 1. Play Campaign Level (random grid size, difficulty strictly follows player progression)
   const handlePlayCampaign = () => {
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
     initNewGame({
       level: currentLevel,
-      size: campaignCfg.size,
-      difficulty: campaignCfg.difficulty,
+      difficulty: campaignDiffKey,
     });
     onPlay();
   };
 
-  const handlePlayCustom = () => {
+  // 2. Play Unlocked Logic Difficulty in Quick Play (random grid size)
+  const handlePlayCustom = (diffKey: DifficultyLevel) => {
+    const isUnlocked = isDifficultyUnlocked(diffKey, currentLevel);
+    if (!isUnlocked) {
+      const reqLevel = DIFFICULTY_UNLOCK_LEVELS[diffKey];
+      Feedback.error(hapticsEnabled, soundEnabled);
+      Alert.alert(
+        '🔒 Kilitli Mantık Kademesi',
+        `"${DIFFICULTY_CONFIG[diffKey].nameTr}" zorluğu Seviye ${reqLevel}'e ulaştığında açılacaktır. Bölüm modunda ilerleyerek kilidi açabilirsin!`,
+        [{ text: 'Anladım', style: 'default' }]
+      );
+      return;
+    }
+
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
+    setSelectedDifficulty(diffKey);
     initNewGame({
       level: currentLevel,
-      size: selectedSize,
-      difficulty: selectedDifficulty,
+      difficulty: diffKey,
     });
     onPlay();
   };
@@ -126,98 +148,85 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </View>
           </View>
           <Text style={styles.campaignSubText}>
-            Izgara: {campaignCfg.size}×{campaignCfg.size} • {campaignDiffInfo.descriptionTr}
+            {campaignDiffInfo.descriptionTr} • Sürpriz Izgara Boyutu
           </Text>
         </TouchableOpacity>
 
-        {/* 2. Custom Game / Boyut ve Mantık Seçimi */}
-        <View style={styles.customCard}>
-          <View style={styles.customHeader}>
-            <Text style={styles.customTitle}>🎯 Hızlı & Özel Bulmaca</Text>
-            <Text style={styles.customSubtitle}>Boyut ve mantık zorluğunu sen belirle</Text>
+        {/* 2. Mantık Kademeleri & Kademeli Kilit Açma */}
+        <View style={styles.difficultyCard}>
+          <View style={styles.diffHeader}>
+            <Text style={styles.diffTitle}>🧩 Mantık Zorluğu Kademeleri</Text>
+            <Text style={styles.diffSubtitle}>
+              İlerledikçe yeni mantıksal çıkarım tekniklerinin kilidi açılır
+            </Text>
           </View>
 
-          {/* Size Selector */}
-          <Text style={styles.sectionLabel}>Izgara Boyutu (Kare Sayısı)</Text>
-          <View style={styles.sizeRow}>
-            {SIZES.map((sz) => {
-              const isSelected = selectedSize === sz;
-              return (
-                <TouchableOpacity
-                  key={`sz-${sz}`}
-                  style={[styles.sizePill, isSelected && styles.sizePillActive]}
-                  onPress={() => {
-                    Feedback.buttonPress(hapticsEnabled, soundEnabled);
-                    setSelectedSize(sz);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text
-                    style={[
-                      styles.sizePillText,
-                      isSelected && styles.sizePillTextActive,
-                    ]}
-                  >
-                    {sz}×{sz}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* Logic Difficulty Selector */}
-          <Text style={styles.sectionLabel}>Mantık Zorluğu (Çıkarım Tekniği)</Text>
-          <View style={styles.diffRow}>
+          <View style={styles.diffList}>
             {DIFFICULTIES.map((diffKey) => {
               const diff = DIFFICULTY_CONFIG[diffKey];
+              const unlocked = isDifficultyUnlocked(diffKey, currentLevel);
+              const reqLevel = DIFFICULTY_UNLOCK_LEVELS[diffKey];
               const isSelected = selectedDifficulty === diffKey;
+
               return (
                 <TouchableOpacity
                   key={`diff-${diffKey}`}
                   style={[
-                    styles.diffPill,
-                    isSelected && {
+                    styles.diffItem,
+                    unlocked && isSelected && {
                       borderColor: diff.color,
                       backgroundColor: diff.lightColor,
                     },
+                    !unlocked && styles.diffItemLocked,
                   ]}
-                  onPress={() => {
-                    Feedback.buttonPress(hapticsEnabled, soundEnabled);
-                    setSelectedDifficulty(diffKey);
-                  }}
+                  onPress={() => handlePlayCustom(diffKey)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.diffPillEmoji}>{diff.badgeEmoji}</Text>
-                  <Text
-                    style={[
-                      styles.diffPillName,
-                      isSelected && { color: diff.color, fontWeight: '900' },
-                    ]}
-                  >
-                    {diff.nameTr}
+                  <View style={styles.diffLeft}>
+                    <Text style={[styles.diffEmoji, !unlocked && styles.diffEmojiLocked]}>
+                      {diff.badgeEmoji}
+                    </Text>
+                    <View style={styles.diffTextCol}>
+                      <View style={styles.diffNameRow}>
+                        <Text
+                          style={[
+                            styles.diffName,
+                            unlocked && isSelected && { color: diff.color, fontWeight: '900' },
+                            !unlocked && styles.diffNameLocked,
+                          ]}
+                        >
+                          {diff.nameTr}
+                        </Text>
+                        {!unlocked && (
+                          <View style={styles.lockBadge}>
+                            <Text style={styles.lockBadgeText}>🔒 Seviye {reqLevel}</Text>
+                          </View>
+                        )}
+                        {unlocked && (
+                          <View
+                            style={[
+                              styles.unlockedBadge,
+                              { backgroundColor: diff.lightColor },
+                            ]}
+                          >
+                            <Text style={[styles.unlockedBadgeText, { color: diff.color }]}>
+                              ✓ Açık
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.diffDesc}>
+                        {diff.descriptionTr}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.playArrow, !unlocked && styles.playArrowLocked]}>
+                    ▶
                   </Text>
                 </TouchableOpacity>
               );
             })}
           </View>
-
-          {/* Technique explanation text */}
-          <View style={styles.techniqueInfoBox}>
-            <Text style={styles.techniqueInfoText}>
-              ℹ️ {selectedDiffInfo.descriptionTr}
-            </Text>
-          </View>
-
-          {/* Custom Play Action Button */}
-          <TouchableOpacity
-            style={styles.customPlayBtn}
-            onPress={handlePlayCustom}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.customPlayBtnText}>
-              {selectedSize}×{selectedSize} {selectedDiffInfo.nameTr} Başlat ▶
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Menu Buttons Grid */}
@@ -348,7 +357,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   campaignLevelText: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: '900',
     color: '#FFFFFF',
   },
@@ -364,11 +373,11 @@ const styles = StyleSheet.create({
   campaignSubText: {
     fontSize: 12,
     color: '#EBF8FF',
-    marginTop: 4,
+    marginTop: 5,
     fontWeight: '600',
   },
-  // Custom Card
-  customCard: {
+  // Difficulty List Card
+  difficultyCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
@@ -382,106 +391,101 @@ const styles = StyleSheet.create({
     elevation: 2,
     marginBottom: 18,
   },
-  customHeader: {
+  diffHeader: {
     marginBottom: 12,
   },
-  customTitle: {
+  diffTitle: {
     fontSize: 16,
     fontWeight: '900',
     color: '#2D3748',
   },
-  customSubtitle: {
+  diffSubtitle: {
     fontSize: 12,
     color: '#718096',
     fontWeight: '500',
     marginTop: 2,
   },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#4A5568',
-    marginBottom: 8,
-    marginTop: 4,
+  diffList: {
+    gap: 8,
   },
-  sizeRow: {
+  diffItem: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14,
-    gap: 6,
-  },
-  sizePill: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 14,
     backgroundColor: '#F7FAFC',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    alignItems: 'center',
   },
-  sizePillActive: {
-    backgroundColor: '#3182CE',
-    borderColor: '#3182CE',
+  diffItemLocked: {
+    backgroundColor: '#F8F9FA',
+    borderColor: '#EDF2F7',
+    opacity: 0.75,
   },
-  sizePillText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#4A5568',
-  },
-  sizePillTextActive: {
-    color: '#FFFFFF',
-  },
-  diffRow: {
+  diffLeft: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 6,
-    marginBottom: 8,
-  },
-  diffPill: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 12,
-    backgroundColor: '#F7FAFC',
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
     alignItems: 'center',
+    flex: 1,
+    marginRight: 10,
   },
-  diffPillEmoji: {
-    fontSize: 16,
-    marginBottom: 2,
+  diffEmoji: {
+    fontSize: 24,
+    marginRight: 10,
   },
-  diffPillName: {
-    fontSize: 11,
+  diffEmojiLocked: {
+    opacity: 0.6,
+  },
+  diffTextCol: {
+    flex: 1,
+  },
+  diffNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  diffName: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#2D3748',
+  },
+  diffNameLocked: {
+    color: '#A0AEC0',
+  },
+  lockBadge: {
+    backgroundColor: '#EDF2F7',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  lockBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
-    color: '#4A5568',
+    color: '#718096',
   },
-  techniqueInfoBox: {
-    backgroundColor: '#F7FAFC',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginBottom: 12,
+  unlockedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
   },
-  techniqueInfoText: {
+  unlockedBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  diffDesc: {
     fontSize: 11,
     color: '#718096',
-    fontWeight: '600',
-    fontStyle: 'italic',
+    fontWeight: '500',
+    marginTop: 2,
   },
-  customPlayBtn: {
-    backgroundColor: '#48BB78',
-    paddingVertical: 12,
-    borderRadius: 14,
-    alignItems: 'center',
-    shadowColor: '#48BB78',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  customPlayBtnText: {
+  playArrow: {
     fontSize: 15,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: '#3182CE',
+  },
+  playArrowLocked: {
+    color: '#CBD5E0',
   },
   // Menu Buttons
   menuGrid: {

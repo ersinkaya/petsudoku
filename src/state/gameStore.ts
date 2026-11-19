@@ -109,46 +109,49 @@ export function getDifficultyTarget(diff: DifficultyLevel): {
   return DIFFICULTY_CONFIG[diff];
 }
 
+export const DIFFICULTY_UNLOCK_LEVELS: Record<DifficultyLevel, number> = {
+  easy: 1,     // Her zaman açık (Başlangıç)
+  medium: 5,   // Seviye 5'te açılır
+  hard: 15,    // Seviye 15'te açılır
+  master: 30,  // Seviye 30'da açılır
+};
+
+export function isDifficultyUnlocked(diff: DifficultyLevel, currentLevel: number): boolean {
+  return currentLevel >= DIFFICULTY_UNLOCK_LEVELS[diff];
+}
+
+export function getDifficultyForLevel(level: number): DifficultyLevel {
+  if (level < 5) return 'easy';
+  if (level < 15) return 'medium';
+  if (level < 30) return 'hard';
+  return 'master';
+}
+
 /**
- * Returns dynamic size and logic difficulty for each campaign level.
- * Sizes rotate early (5x5, 6x6, 7x7, 8x8, 9x9) so the player experiences
- * different grids while logic difficulty steadily deepens.
+ * Returns a randomized grid size (5 to 9).
+ * Size is not chosen by the player; it arrives as an organic variety.
+ * Level 1 always starts with 5x5 for smooth onboarding.
+ * Level 2+ produces randomized sizes between 5 and 9.
  */
-export function getLevelConfig(level: number): { size: number; difficulty: DifficultyLevel } {
-  const progression: Array<{ size: number; difficulty: DifficultyLevel }> = [
-    { size: 5, difficulty: 'easy' },   // Bölüm 1: 5x5 Başlangıç
-    { size: 6, difficulty: 'easy' },   // Bölüm 2: 6x6 Kolay
-    { size: 5, difficulty: 'medium' }, // Bölüm 3: 5x5 Orta
-    { size: 7, difficulty: 'easy' },   // Bölüm 4: 7x7 Kolay
-    { size: 6, difficulty: 'medium' }, // Bölüm 5: 6x6 Orta
-    { size: 8, difficulty: 'easy' },   // Bölüm 6: 8x8 Kolay
-    { size: 9, difficulty: 'easy' },   // Bölüm 7: 9x9 Erken Deneyim!
-    { size: 7, difficulty: 'medium' }, // Bölüm 8: 7x7 Orta
-    { size: 6, difficulty: 'hard' },   // Bölüm 9: 6x6 Zor
-    { size: 9, difficulty: 'medium' }, // Bölüm 10: 9x9 Orta
-    { size: 8, difficulty: 'medium' }, // Bölüm 11: 8x8 Orta
-    { size: 7, difficulty: 'hard' },   // Bölüm 12: 7x7 Zor
-    { size: 9, difficulty: 'hard' },   // Bölüm 13: 9x9 Zor
-    { size: 8, difficulty: 'hard' },   // Bölüm 14: 8x8 Zor
-    { size: 9, difficulty: 'master' }, // Bölüm 15: 9x9 Usta
-  ];
-
-  if (level >= 1 && level <= progression.length) {
-    return progression[level - 1];
+export function getRandomGridSize(level?: number, seed?: number): number {
+  if (level === 1) return 5;
+  const sizes = [5, 6, 7, 8, 9];
+  if (seed !== undefined) {
+    const idx = Math.abs(seed * 7919 + (level || 0) * 31) % sizes.length;
+    return sizes[idx];
   }
+  return sizes[Math.floor(Math.random() * sizes.length)];
+}
 
-  // Seviye 16+ sonsuz döngü: zengin boyutlar ve ileri zorluklar
-  const sizes = [7, 8, 9, 8, 9];
-  const diffs: DifficultyLevel[] = ['medium', 'hard', 'hard', 'master', 'master'];
-  const idx = (level - 1) % sizes.length;
+export function getLevelConfig(level: number): { size: number; difficulty: DifficultyLevel } {
   return {
-    size: sizes[idx],
-    difficulty: diffs[idx],
+    size: getRandomGridSize(level),
+    difficulty: getDifficultyForLevel(level),
   };
 }
 
 export function getSizeForLevel(level: number): number {
-  return getLevelConfig(level).size;
+  return getRandomGridSize(level);
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => ({

@@ -328,6 +328,7 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
   const seed = options.seed !== undefined ? options.seed : Math.floor(Math.random() * 2147483647);
   const rng = new SeededRNG(seed);
   const maxAttempts = options.maxAttempts || 300;
+  let fallbackUniquePuzzle: Puzzle | null = null;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const solution = generateSolutionLayout(size, rng);
@@ -340,14 +341,7 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
       let solResult = solvePuzzle(size, regions, 2);
       if (solResult.count === 1) {
         const logic = solveWithLogic(size, regions, 5);
-        if (options.targetDifficulty?.minTechnique && logic.maxTechnique < options.targetDifficulty.minTechnique) {
-          continue;
-        }
-        if (options.targetDifficulty?.maxTechnique && logic.maxTechnique > options.targetDifficulty.maxTechnique) {
-          continue;
-        }
-
-        return {
+        const puzzleCandidate: Puzzle = {
           size,
           regions,
           solution,
@@ -357,6 +351,16 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
           },
           seed,
         };
+        fallbackUniquePuzzle = puzzleCandidate;
+
+        if (options.targetDifficulty?.minTechnique && logic.maxTechnique < options.targetDifficulty.minTechnique) {
+          continue;
+        }
+        if (options.targetDifficulty?.maxTechnique && logic.maxTechnique > options.targetDifficulty.maxTechnique) {
+          continue;
+        }
+
+        return puzzleCandidate;
       }
 
       // Quick repair iterations
@@ -372,14 +376,7 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
         solResult = solvePuzzle(size, regions, 2);
         if (solResult.count === 1) {
           const logic = solveWithLogic(size, regions, 5);
-          if (options.targetDifficulty?.minTechnique && logic.maxTechnique < options.targetDifficulty.minTechnique) {
-            break;
-          }
-          if (options.targetDifficulty?.maxTechnique && logic.maxTechnique > options.targetDifficulty.maxTechnique) {
-            break;
-          }
-
-          return {
+          const puzzleCandidate: Puzzle = {
             size,
             regions,
             solution,
@@ -389,9 +386,23 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
             },
             seed,
           };
+          fallbackUniquePuzzle = puzzleCandidate;
+
+          if (options.targetDifficulty?.minTechnique && logic.maxTechnique < options.targetDifficulty.minTechnique) {
+            break;
+          }
+          if (options.targetDifficulty?.maxTechnique && logic.maxTechnique > options.targetDifficulty.maxTechnique) {
+            break;
+          }
+
+          return puzzleCandidate;
         }
       }
     }
+  }
+
+  if (fallbackUniquePuzzle) {
+    return fallbackUniquePuzzle;
   }
 
   throw new Error(`Failed to generate puzzle of size ${size} after ${maxAttempts} attempts`);
