@@ -1,5 +1,12 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Easing,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { REGION_COLORS } from '../assets/petConfig';
 import { CellCoord, CellState, Pet, Puzzle } from '../engine/types';
 import { Cell } from './Cell';
@@ -46,70 +53,84 @@ export const Grid: React.FC<GridProps> = ({
     }
   }
 
-  // Card-dealing entrance spring animation synchronized with deal sound
+  // Card-dealing entrance animation: sweeps sequentially from left to right
   const dealAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     dealAnim.setValue(0);
-    Animated.spring(dealAnim, {
+    Animated.timing(dealAnim, {
       toValue: 1,
-      friction: 7,
-      tension: 65,
+      duration: 460,
+      easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start();
   }, [puzzle.seed]);
 
-  const translateY = dealAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [18, 0],
-  });
+  // Precomputed staggered left-to-right slide animation for each column
+  const colAnimStyles = useMemo(() => {
+    return Array.from({ length: n }).map((_, c) => {
+      // Column stagger: left-most column starts at t=0, right-most column sweeps in progressively
+      const start = (c / n) * 0.48;
+      const end = Math.min(1, start + 0.50);
 
-  const scale = dealAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.93, 1],
-  });
+      const translateX = dealAnim.interpolate({
+        inputRange: [0, start, end, 1],
+        outputRange: [-42, -42, 0, 0],
+      });
 
-  const opacity = dealAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.2, 1],
+      const opacity = dealAnim.interpolate({
+        inputRange: [0, start, end, 1],
+        outputRange: [0, 0, 1, 1],
+      });
+
+      const scale = dealAnim.interpolate({
+        inputRange: [0, start, end, 1],
+        outputRange: [0.86, 0.86, 1, 1],
+      });
+
+      return {
+        opacity,
+        transform: [{ translateX }, { scale }],
+      };
+    });
+  }, [n, dealAnim]);
+
+  const cardOpacity = dealAnim.interpolate({
+    inputRange: [0, 0.15, 1],
+    outputRange: [0.35, 1, 1],
   });
 
   return (
     <View style={styles.wrapper}>
       {/* Region Indicators Header (Cats row from screenshot) */}
-      <Animated.View
-        style={[
-          styles.notchHeader,
-          { opacity, transform: [{ scale }] },
-        ]}
-      >
+      <View style={styles.notchHeader}>
         {Array.from({ length: n }).map((_, regIdx) => {
           const color = REGION_COLORS[regIdx % REGION_COLORS.length];
           const isDone = completedRegions.has(regIdx);
 
           return (
-            <View
+            <Animated.View
               key={`reg-cat-${regIdx}`}
               style={[
                 styles.catBadge,
                 { backgroundColor: color },
                 isDone && styles.catBadgeDone,
+                colAnimStyles[regIdx],
               ]}
             >
               <Text style={styles.catBadgeIcon}>{isDone ? '✓' : '🐱'}</Text>
-            </View>
+            </Animated.View>
           );
         })}
-      </Animated.View>
+      </View>
 
-      {/* Main Grid Card with card deal spring transition */}
+      {/* Main Grid Card with cards dealing from left to right */}
       <Animated.View
         style={[
           styles.gridCard,
           {
             width: cardWidth,
-            opacity,
-            transform: [{ translateY }, { scale }],
+            opacity: cardOpacity,
           },
         ]}
       >
@@ -126,19 +147,23 @@ export const Grid: React.FC<GridProps> = ({
                   lastErrorCell?.row === r && lastErrorCell?.col === c;
 
                 return (
-                  <Cell
-                    key={`cell-${r}-${c}`}
-                    row={r}
-                    col={c}
-                    state={state}
-                    region={currentReg}
-                    pet={pet}
-                    cellSize={cellSize}
-                    isHinted={isHinted}
-                    isError={isError}
-                    onPress={onCellPress}
-                    onLongPress={onCellLongPress}
-                  />
+                  <Animated.View
+                    key={`anim-cell-${r}-${c}`}
+                    style={colAnimStyles[c]}
+                  >
+                    <Cell
+                      row={r}
+                      col={c}
+                      state={state}
+                      region={currentReg}
+                      pet={pet}
+                      cellSize={cellSize}
+                      isHinted={isHinted}
+                      isError={isError}
+                      onPress={onCellPress}
+                      onLongPress={onCellLongPress}
+                    />
+                  </Animated.View>
                 );
               })}
             </View>
