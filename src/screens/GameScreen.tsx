@@ -9,6 +9,7 @@ import { ResultModal } from '../components/ResultModal';
 import { calculateScore } from '../stats/score';
 import { useGameStore } from '../state/gameStore';
 import { useProfileStore } from '../state/profileStore';
+import { Feedback } from '../utils/feedback';
 
 interface GameScreenProps {
   onBackToHome: () => void;
@@ -18,6 +19,8 @@ interface GameScreenProps {
 export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSettings }) => {
   const pet = useProfileStore((state) => state.pet) || 'cat';
   const autoMark = useProfileStore((state) => state.settings.autoMark);
+  const hapticsEnabled = useProfileStore((state) => state.settings.haptics);
+  const soundEnabled = useProfileStore((state) => state.settings.sound);
   const currentLevel = useProfileStore((state) => state.currentLevel);
   const totalScore = useProfileStore((state) => state.stats.totalScore);
   const advanceLevel = useProfileStore((state) => state.advanceLevel);
@@ -70,6 +73,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   // Handle Win
   useEffect(() => {
     if (isWon) {
+      Feedback.win(hapticsEnabled, soundEnabled);
+
       const score = calculateScore({
         size: puzzle.size,
         seconds: elapsedSeconds,
@@ -101,17 +106,40 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     }
 
     const res = handleCellTap(row, col, autoMark);
-    if (res.status === 'animal_wrong') {
+    if (res.status === 'mark') {
+      Feedback.mark(hapticsEnabled, soundEnabled);
+    } else if (res.status === 'animal_correct') {
+      Feedback.correctAnimal(hapticsEnabled, soundEnabled);
+    } else if (res.status === 'cleared') {
+      Feedback.clear(hapticsEnabled, soundEnabled);
+    } else if (res.status === 'animal_wrong') {
+      Feedback.error(hapticsEnabled, soundEnabled);
       setLastErrorCell({ row, col });
       setTimeout(() => setLastErrorCell(null), 1200);
     }
   };
 
+  const handleUndo = () => {
+    const success = undo();
+    if (success) {
+      Feedback.undo(hapticsEnabled, soundEnabled);
+    }
+  };
+
+  const handleHint = () => {
+    const hint = useHint();
+    if (hint) {
+      Feedback.hint(hapticsEnabled, soundEnabled);
+    }
+  };
+
   const handleNextLevel = () => {
+    Feedback.buttonPress(hapticsEnabled, soundEnabled);
     advanceLevel();
   };
 
   const handleDoubleReward = () => {
+    Feedback.buttonPress(hapticsEnabled, soundEnabled);
     const rewardId = pet === 'cat' ? 'mouse' : pet === 'dog' ? 'bone' : 'carrot';
     addReward(rewardId, 2);
     handleNextLevel();
@@ -126,8 +154,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         lives={lives}
         maxLives={3}
         pet={pet}
-        onExit={onBackToHome}
-        onSettings={onOpenSettings}
+        onExit={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          onBackToHome();
+        }}
+        onSettings={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          onOpenSettings?.();
+        }}
       />
 
       {/* Main Grid Area */}
@@ -155,13 +189,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         pet={pet}
         canUndo={undoStack.length > 0 && !isWon && !isGameOver}
         hintsLeft={hintsLeft}
-        onUndo={undo}
-        onHint={useHint}
-        onPetAction={() => {}}
-        onRewardAction={addRewardHint}
+        onUndo={handleUndo}
+        onHint={handleHint}
+        onPetAction={() => Feedback.buttonPress(hapticsEnabled, soundEnabled)}
+        onRewardAction={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          addRewardHint();
+        }}
       />
 
-      {/* Bottom Banner Area (as seen in screenshot) */}
+      {/* Bottom Banner Area */}
       <View style={styles.bottomBanner}>
         <View style={styles.bannerInner}>
           <Text style={styles.bannerBrand}>PedSudoku</Text>
@@ -183,7 +220,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         isNewBestTime={winRecordInfo?.isNewBestTime}
         onNextLevel={handleNextLevel}
         onDoubleRewardAd={handleDoubleReward}
-        onHome={onBackToHome}
+        onHome={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          onBackToHome();
+        }}
       />
 
       {/* Game Over Modal */}
@@ -191,8 +231,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         visible={isGameOver}
         canWatchAdToContinue={!adContinueUsed}
         pet={pet}
-        onWatchAd={continueWithRewardAd}
+        onWatchAd={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          continueWithRewardAd();
+        }}
         onGiveUp={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
           initNewGame(currentLevel);
           onBackToHome();
         }}
