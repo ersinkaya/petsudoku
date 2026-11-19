@@ -1,7 +1,16 @@
 import { create } from 'zustand';
 import { generatePuzzle } from '../engine/generator';
 import { getNextLogicalHint } from '../engine/techniques';
-import { Action, CellCoord, CellState, ConflictDetail, GameState, Puzzle } from '../engine/types';
+import {
+  Action,
+  CellCoord,
+  CellState,
+  ConflictDetail,
+  DifficultyLevel,
+  GameState,
+  Puzzle,
+  TechniqueDifficulty,
+} from '../engine/types';
 import { findConflicts, isCorrectPlacement, isSolved } from '../engine/validator';
 
 export type TapMode = 'cycle' | 'toggle' | 'place_animal';
@@ -13,8 +22,13 @@ export interface GameStoreState extends GameState {
   lastConflictDetails: ConflictDetail[] | null;
   lastErrorMessage: string | null;
 
+  difficultyLevel: DifficultyLevel;
   // Actions
-  initNewGame: (level: number, size?: number, seed?: number) => void;
+  initNewGame: (
+    optionsOrLevel?: NewGameOptions | number,
+    customSize?: number,
+    customSeed?: number
+  ) => void;
   loadSavedGame: (saved: GameState) => void;
   handleCellTap: (
     row: number,
@@ -33,12 +47,108 @@ export interface GameStoreState extends GameState {
   tickElapsedSecond: () => void;
 }
 
+export interface NewGameOptions {
+  level?: number;
+  size?: number;
+  difficulty?: DifficultyLevel;
+  seed?: number;
+}
+
+export const DIFFICULTY_CONFIG: Record<
+  DifficultyLevel,
+  {
+    nameTr: string;
+    descriptionTr: string;
+    badgeEmoji: string;
+    color: string;
+    lightColor: string;
+    minTechnique?: TechniqueDifficulty;
+    maxTechnique?: TechniqueDifficulty;
+  }
+> = {
+  easy: {
+    nameTr: 'Kolay',
+    descriptionTr: 'Doğrudan çıkarımlar (Tek aday & komşuluk)',
+    badgeEmoji: '🌱',
+    color: '#38A169',
+    lightColor: '#E6FFFA',
+    maxTechnique: 2,
+  },
+  medium: {
+    nameTr: 'Orta',
+    descriptionTr: 'Bölge-hat izdüşümleri (Pointing & Claiming)',
+    badgeEmoji: '💡',
+    color: '#DD6B20',
+    lightColor: '#FEEBC8',
+    minTechnique: 2,
+    maxTechnique: 3,
+  },
+  hard: {
+    nameTr: 'Zor',
+    descriptionTr: 'Alt küme analizleri (Box-line subsets)',
+    badgeEmoji: '🔥',
+    color: '#E53E3E',
+    lightColor: '#FED7D7',
+    minTechnique: 3,
+    maxTechnique: 4,
+  },
+  master: {
+    nameTr: 'Usta',
+    descriptionTr: 'Derin mantık & çelişki analizi',
+    badgeEmoji: '👑',
+    color: '#805AD5',
+    lightColor: '#E9D8FD',
+    minTechnique: 4,
+  },
+};
+
+export function getDifficultyTarget(diff: DifficultyLevel): {
+  minTechnique?: TechniqueDifficulty;
+  maxTechnique?: TechniqueDifficulty;
+} {
+  return DIFFICULTY_CONFIG[diff];
+}
+
+/**
+ * Returns dynamic size and logic difficulty for each campaign level.
+ * Sizes rotate early (5x5, 6x6, 7x7, 8x8, 9x9) so the player experiences
+ * different grids while logic difficulty steadily deepens.
+ */
+export function getLevelConfig(level: number): { size: number; difficulty: DifficultyLevel } {
+  const progression: Array<{ size: number; difficulty: DifficultyLevel }> = [
+    { size: 5, difficulty: 'easy' },   // Bölüm 1: 5x5 Başlangıç
+    { size: 6, difficulty: 'easy' },   // Bölüm 2: 6x6 Kolay
+    { size: 5, difficulty: 'medium' }, // Bölüm 3: 5x5 Orta
+    { size: 7, difficulty: 'easy' },   // Bölüm 4: 7x7 Kolay
+    { size: 6, difficulty: 'medium' }, // Bölüm 5: 6x6 Orta
+    { size: 8, difficulty: 'easy' },   // Bölüm 6: 8x8 Kolay
+    { size: 9, difficulty: 'easy' },   // Bölüm 7: 9x9 Erken Deneyim!
+    { size: 7, difficulty: 'medium' }, // Bölüm 8: 7x7 Orta
+    { size: 6, difficulty: 'hard' },   // Bölüm 9: 6x6 Zor
+    { size: 9, difficulty: 'medium' }, // Bölüm 10: 9x9 Orta
+    { size: 8, difficulty: 'medium' }, // Bölüm 11: 8x8 Orta
+    { size: 7, difficulty: 'hard' },   // Bölüm 12: 7x7 Zor
+    { size: 9, difficulty: 'hard' },   // Bölüm 13: 9x9 Zor
+    { size: 8, difficulty: 'hard' },   // Bölüm 14: 8x8 Zor
+    { size: 9, difficulty: 'master' }, // Bölüm 15: 9x9 Usta
+  ];
+
+  if (level >= 1 && level <= progression.length) {
+    return progression[level - 1];
+  }
+
+  // Seviye 16+ sonsuz döngü: zengin boyutlar ve ileri zorluklar
+  const sizes = [7, 8, 9, 8, 9];
+  const diffs: DifficultyLevel[] = ['medium', 'hard', 'hard', 'master', 'master'];
+  const idx = (level - 1) % sizes.length;
+  return {
+    size: sizes[idx],
+    difficulty: diffs[idx],
+  };
+}
+
 export function getSizeForLevel(level: number): number {
-  if (level <= 10) return 5;
-  if (level <= 20) return 6;
-  if (level <= 30) return 7;
-  if (level <= 40) return 8;
-  return 9; // 41+ is 9x9 (including master mode 51+)
+  return getLevelConfig(level).size;
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
@@ -57,6 +167,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   adHintUsed: false,
   undoStack: [],
   level: 1,
+  difficultyLevel: 'easy',
   elapsedSeconds: 0,
   isWon: false,
   isGameOver: false,
@@ -64,9 +175,42 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   lastConflictDetails: null,
   lastErrorMessage: null,
 
-  initNewGame: (level: number, customSize?: number, seed?: number) => {
-    const size = customSize || getSizeForLevel(level);
-    const puzzle = generatePuzzle({ size, seed });
+  initNewGame: (
+    optionsOrLevel?: NewGameOptions | number,
+    customSize?: number,
+    customSeed?: number
+  ) => {
+    let opts: NewGameOptions;
+    if (typeof optionsOrLevel === 'number') {
+      opts = {
+        level: optionsOrLevel,
+        size: customSize,
+        seed: customSeed,
+      };
+    } else {
+      opts = optionsOrLevel || {};
+    }
+
+    const currentLevel = opts.level ?? get().level ?? 1;
+    const levelConfig = getLevelConfig(currentLevel);
+    const size = opts.size ?? (customSize || levelConfig.size);
+    const difficultyLevel = opts.difficulty ?? levelConfig.difficulty;
+    const seed =
+      opts.seed !== undefined
+        ? opts.seed
+        : Math.floor(Math.random() * 2147483647);
+
+    const targetDifficulty = getDifficultyTarget(difficultyLevel);
+    const puzzle = generatePuzzle({
+      size,
+      seed,
+      targetDifficulty: {
+        minTechnique: targetDifficulty.minTechnique,
+        maxTechnique: targetDifficulty.maxTechnique,
+      },
+      maxAttempts: 300,
+    });
+
     const cells: CellState[][] = Array.from({ length: size }, () =>
       new Array(size).fill('empty')
     );
@@ -80,7 +224,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       adContinueUsed: false,
       adHintUsed: false,
       undoStack: [],
-      level,
+      level: currentLevel,
+      difficultyLevel,
       elapsedSeconds: 0,
       isWon: false,
       isGameOver: false,

@@ -41,6 +41,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const lastErrorMessage = useGameStore((state) => state.lastErrorMessage);
   const adContinueUsed = useGameStore((state) => state.adContinueUsed);
   const adHintUsed = useGameStore((state) => state.adHintUsed);
+  const difficultyLevel = useGameStore((state) => state.difficultyLevel);
 
   // Store actions
   const initNewGame = useGameStore((state) => state.initNewGame);
@@ -66,7 +67,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
 
   // Start new game on mount if level changed or empty
   useEffect(() => {
-    initNewGame(currentLevel);
+    if (!puzzle.size || cells.length === 0) {
+      initNewGame({ level: currentLevel });
+    }
   }, [currentLevel]);
 
   // Timer interval
@@ -185,7 +188,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
 
   const handleNextLevel = () => {
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
+    const nextLevel = currentLevel + 1;
     advanceLevel();
+    initNewGame({ level: nextLevel });
   };
 
   const handleDoubleReward = () => {
@@ -200,6 +205,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
       {/* Top Header HUD */}
       <GameHUD
         level={currentLevel}
+        size={puzzle.size}
+        difficulty={difficultyLevel}
         score={totalScore}
         lives={lives}
         maxLives={3}

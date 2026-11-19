@@ -2,6 +2,7 @@ export type Pet = 'cat' | 'dog' | 'rabbit';
 export type CellState = 'empty' | 'mark' | 'animal';
 
 export type TechniqueDifficulty = 1 | 2 | 3 | 4 | 5;
+export type DifficultyLevel = 'easy' | 'medium' | 'hard' | 'master';
 
 export interface PuzzleDifficulty {
   maxTechnique: TechniqueDifficulty;
@@ -38,6 +39,7 @@ export interface GameState {
   adHintUsed: boolean; // reklamla +1 ipucu hakkı kullanıldı mı
   undoStack: Action[];
   level: number;
+  difficultyLevel?: DifficultyLevel;
   elapsedSeconds: number; // duraklatılabilir süre sayacı
 }
 

@@ -1,10 +1,13 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { PET_CONFIGS } from '../assets/petConfig';
-import { Pet } from '../engine/types';
+import { DifficultyLevel, Pet } from '../engine/types';
+import { DIFFICULTY_CONFIG } from '../state/gameStore';
 
 interface GameHUDProps {
   level: number;
+  size?: number;
+  difficulty?: DifficultyLevel;
   score: number;
   lives: number;
   maxLives?: number;
@@ -15,6 +18,8 @@ interface GameHUDProps {
 
 export const GameHUD: React.FC<GameHUDProps> = ({
   level,
+  size,
+  difficulty = 'easy',
   score,
   lives,
   maxLives = 3,
@@ -25,6 +30,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   const petItem = PET_CONFIGS[pet] || PET_CONFIGS.cat;
   const petName = petItem.nameTr.toLowerCase();
   const petPlural = pet === 'cat' ? 'Kediler' : `${petItem.nameTr}'ler`;
+  const diffInfo = DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.easy;
 
   return (
     <View style={styles.container}>
@@ -35,11 +41,18 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
 
-        {/* Center: Bölüm & Skor */}
+        {/* Center: Bölüm, Boyut & Zorluk Rozeti */}
         <View style={styles.centerStats}>
           <View style={styles.statCol}>
-            <Text style={styles.statLabel}>Bölüm</Text>
-            <Text style={styles.statValue}>{level}</Text>
+            <View style={styles.levelRow}>
+              <Text style={styles.statValue}>{level}</Text>
+              {size && <Text style={styles.sizeBadge}>{size}×{size}</Text>}
+            </View>
+            <View style={[styles.diffPill, { backgroundColor: diffInfo.lightColor }]}>
+              <Text style={[styles.diffText, { color: diffInfo.color }]}>
+                {diffInfo.badgeEmoji} {diffInfo.nameTr}
+              </Text>
+            </View>
           </View>
           <View style={styles.statCol}>
             <Text style={styles.statLabel}>Skor</Text>
@@ -139,6 +152,30 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '900',
     color: '#5D4037',
+  },
+  levelRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+  },
+  sizeBadge: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#8D6E63',
+    backgroundColor: '#F5EBE6',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  diffPill: {
+    marginTop: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  diffText: {
+    fontSize: 10,
+    fontWeight: '800',
   },
   treatsPill: {
     alignSelf: 'center',
