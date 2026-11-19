@@ -1,5 +1,5 @@
-import React from 'react';
-import { Dimensions, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native';
 import { REGION_COLORS } from '../assets/petConfig';
 import { CellCoord, CellState, Pet, Puzzle } from '../engine/types';
 import { Cell } from './Cell';
@@ -46,10 +46,43 @@ export const Grid: React.FC<GridProps> = ({
     }
   }
 
+  // Card-dealing entrance spring animation synchronized with deal sound
+  const dealAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    dealAnim.setValue(0);
+    Animated.spring(dealAnim, {
+      toValue: 1,
+      friction: 7,
+      tension: 65,
+      useNativeDriver: true,
+    }).start();
+  }, [puzzle.seed]);
+
+  const translateY = dealAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [18, 0],
+  });
+
+  const scale = dealAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.93, 1],
+  });
+
+  const opacity = dealAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 1],
+  });
+
   return (
     <View style={styles.wrapper}>
       {/* Region Indicators Header (Cats row from screenshot) */}
-      <View style={styles.notchHeader}>
+      <Animated.View
+        style={[
+          styles.notchHeader,
+          { opacity, transform: [{ scale }] },
+        ]}
+      >
         {Array.from({ length: n }).map((_, regIdx) => {
           const color = REGION_COLORS[regIdx % REGION_COLORS.length];
           const isDone = completedRegions.has(regIdx);
@@ -67,10 +100,19 @@ export const Grid: React.FC<GridProps> = ({
             </View>
           );
         })}
-      </View>
+      </Animated.View>
 
-      {/* Main Grid Card */}
-      <View style={[styles.gridCard, { width: cardWidth }]}>
+      {/* Main Grid Card with card deal spring transition */}
+      <Animated.View
+        style={[
+          styles.gridCard,
+          {
+            width: cardWidth,
+            opacity,
+            transform: [{ translateY }, { scale }],
+          },
+        ]}
+      >
         <View style={[styles.gridMatrix, { gap: cellGap }]}>
           {Array.from({ length: n }).map((_, r) => (
             <View key={`row-${r}`} style={[styles.row, { gap: cellGap }]}>
@@ -102,7 +144,7 @@ export const Grid: React.FC<GridProps> = ({
             </View>
           ))}
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 };

@@ -10,6 +10,7 @@ const SOUNDS = {
   hint: require('../../assets/sounds/hint.wav'),
   win: require('../../assets/sounds/win.wav'),
   click: require('../../assets/sounds/click.wav'),
+  deal: require('../../assets/sounds/deal.wav'),
 };
 
 type SoundKey = keyof typeof SOUNDS;
@@ -178,6 +179,21 @@ export const Feedback = {
     }
     if (soundEnabled) {
       playSound('click', 1);
+    }
+  },
+
+  // Initial grid deal / card dealing sound effect when puzzle opens
+  dealCards(hapticsEnabled: boolean = true, soundEnabled: boolean = true) {
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        setTimeout(() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+        }, 110);
+      } catch {}
+    }
+    if (soundEnabled) {
+      playSound('deal', 2);
     }
   },
 };

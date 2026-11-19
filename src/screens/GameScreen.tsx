@@ -64,6 +64,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     time: 0,
   });
   const lastUndoRef = useRef<number>(0);
+  const lastDealtSeedRef = useRef<number | null>(null);
 
   // Start new game on mount if level changed or empty
   useEffect(() => {
@@ -71,6 +72,17 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
       initNewGame({ level: currentLevel });
     }
   }, [currentLevel]);
+
+  // Card dealing sound effect when initial tiles appear
+  useEffect(() => {
+    if (puzzle.size > 0 && puzzle.seed !== lastDealtSeedRef.current) {
+      lastDealtSeedRef.current = puzzle.seed;
+      const timer = setTimeout(() => {
+        Feedback.dealCards(hapticsEnabled, soundEnabled);
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+  }, [puzzle.seed, puzzle.size]);
 
   // Timer interval
   useEffect(() => {
