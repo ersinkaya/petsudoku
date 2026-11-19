@@ -1,9 +1,46 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import { GameResult, GameState, Pet, Profile, Stats } from '../engine/types';
 
 const PROFILE_STORAGE_KEY = '@pedsudoku_profile_v1';
+
+// In-memory fallback in case native storage module is unavailable in certain testing environments
+const inMemoryCache = new Map<string, string>();
+
+const safeStorage: StateStorage = {
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      if (AsyncStorage) {
+        const value = await AsyncStorage.getItem(key);
+        if (value !== null) return value;
+      }
+    } catch (e) {
+      // Graceful fallback to memory
+    }
+    return inMemoryCache.get(key) || null;
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    inMemoryCache.set(key, value);
+    try {
+      if (AsyncStorage) {
+        await AsyncStorage.setItem(key, value);
+      }
+    } catch (e) {
+      // Graceful fallback to memory
+    }
+  },
+  removeItem: async (key: string): Promise<void> => {
+    inMemoryCache.delete(key);
+    try {
+      if (AsyncStorage) {
+        await AsyncStorage.removeItem(key);
+      }
+    } catch (e) {
+      // Graceful fallback to memory
+    }
+  },
+};
 
 const defaultStats: Stats = {
   totalScore: 0,
@@ -95,7 +132,6 @@ export const useProfileStore = create<ProfileStore>()(
         const todayStr = new Date().toISOString().split('T')[0];
         let streakDays = currentStats.streakDays;
         if (currentStats.lastPlayedDay !== todayStr) {
-          // Check if yesterday
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
           const yesterdayStr = yesterday.toISOString().split('T')[0];
@@ -144,13 +180,7 @@ export const useProfileStore = create<ProfileStore>()(
     }),
     {
       name: PROFILE_STORAGE_KEY,
-      storage: createJSONStorage(() => AsyncStorage),
-      // Safe fallback on parse error
-      onRehydrateStorage: () => (state, error) => {
-        if (error) {
-          console.warn('Profile hydration error, resetting to default:', error);
-        }
-      },
+      storage: createJSONStorage(() => safeStorage),
     }
   )
 );

@@ -44,16 +44,17 @@ export const PET_CONFIGS: Record<Pet, PetConfigItem> = {
   },
 };
 
+// Harmonious, soft, modern pastel palette for up to 9 regions
 export const REGION_COLORS = [
-  '#FFB3BA', // Pastel Pembe
-  '#BAFFC9', // Pastel Yeşil
-  '#BAE1FF', // Pastel Mavi
-  '#FFFFBA', // Pastel Sarı
-  '#FFDFBA', // Pastel Turuncu
-  '#E8BAFF', // Pastel Mor
-  '#BFFCC6', // Nane Yeşili
-  '#D5AAFF', // Lavanta
+  '#FFDFD3', // Şeftali Pembe
+  '#E0BBE4', // Pastel Lavanta
+  '#D4F0F0', // Buz Mavisi
+  '#FCF4D9', // Krem Sarı
+  '#CCE2CB', // Pastel Nane Yeşili
+  '#C8D9EB', // Gökyüzü Mavi
   '#FFC6FF', // Gül Pembe
+  '#BFFCC6', // Açık Çimen
+  '#E8DFF5', // Morumsu Beyaz
 ];
 
 export const REGION_SYMBOLS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];

@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { PET_CONFIGS, REGION_COLORS, REGION_SYMBOLS } from '../assets/petConfig';
-import { CellCoord, CellState, Pet } from '../engine/types';
+import { CellState, Pet } from '../engine/types';
 
 interface CellProps {
   row: number;
@@ -14,10 +14,8 @@ interface CellProps {
   isHinted?: boolean;
   isError?: boolean;
   showSymbols?: boolean;
-  borderTop: boolean;
-  borderBottom: boolean;
-  borderLeft: boolean;
   borderRight: boolean;
+  borderBottom: boolean;
   onPress: (row: number, col: number) => void;
 }
 
@@ -31,11 +29,9 @@ export const Cell: React.FC<CellProps> = ({
   cellSize,
   isHinted,
   isError,
-  showSymbols = true,
-  borderTop,
-  borderBottom,
-  borderLeft,
+  showSymbols = false,
   borderRight,
+  borderBottom,
   onPress,
 }) => {
   const bgColor = REGION_COLORS[region % REGION_COLORS.length];
@@ -51,14 +47,10 @@ export const Cell: React.FC<CellProps> = ({
           width: cellSize,
           height: cellSize,
           backgroundColor: bgColor,
-          borderTopWidth: borderTop ? 3 : 0.5,
-          borderBottomWidth: borderBottom ? 3 : 0.5,
-          borderLeftWidth: borderLeft ? 3 : 0.5,
-          borderRightWidth: borderRight ? 3 : 0.5,
-          borderTopColor: borderTop ? '#2D3748' : 'rgba(0,0,0,0.1)',
-          borderBottomColor: borderBottom ? '#2D3748' : 'rgba(0,0,0,0.1)',
-          borderLeftColor: borderLeft ? '#2D3748' : 'rgba(0,0,0,0.1)',
-          borderRightColor: borderRight ? '#2D3748' : 'rgba(0,0,0,0.1)',
+          borderRightWidth: borderRight ? 2 : 0.5,
+          borderBottomWidth: borderBottom ? 2 : 0.5,
+          borderRightColor: borderRight ? '#4A5568' : 'rgba(0,0,0,0.06)',
+          borderBottomColor: borderBottom ? '#4A5568' : 'rgba(0,0,0,0.06)',
         },
         isHinted && styles.hintedCell,
         isError && styles.errorCell,
@@ -92,14 +84,14 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   hintedCell: {
-    backgroundColor: '#FFF9C4',
-    borderColor: '#FBC02D',
-    borderWidth: 3,
+    backgroundColor: '#FEFCBF',
+    borderColor: '#D69E2E',
+    borderWidth: 2.5,
   },
   errorCell: {
-    backgroundColor: '#FFCDD2',
-    borderColor: '#E53935',
-    borderWidth: 3,
+    backgroundColor: '#FED7D7',
+    borderColor: '#E53E3E',
+    borderWidth: 2.5,
   },
   regionSymbol: {
     position: 'absolute',
@@ -107,7 +99,7 @@ const styles = StyleSheet.create({
     left: 3,
     fontSize: 9,
     fontWeight: '700',
-    color: 'rgba(0,0,0,0.25)',
+    color: 'rgba(0,0,0,0.2)',
   },
   animalEmoji: {
     textAlign: 'center',

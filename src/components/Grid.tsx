@@ -19,7 +19,7 @@ export const Grid: React.FC<GridProps> = ({
   pet,
   activeHintCell,
   lastErrorCell,
-  showSymbols = true,
+  showSymbols = false,
   onCellPress,
 }) => {
   const n = puzzle.size;
@@ -36,11 +36,9 @@ export const Grid: React.FC<GridProps> = ({
             const currentReg = puzzle.regions[r]?.[c] ?? 0;
             const state = cells[r]?.[c] ?? 'empty';
 
-            // Determine if border should be thick (region boundary or grid edge)
-            const borderTop = r === 0 || puzzle.regions[r - 1]?.[c] !== currentReg;
-            const borderBottom = r === n - 1 || puzzle.regions[r + 1]?.[c] !== currentReg;
-            const borderLeft = c === 0 || puzzle.regions[r]?.[c - 1] !== currentReg;
-            const borderRight = c === n - 1 || puzzle.regions[r]?.[c + 1] !== currentReg;
+            // Boundary with next cell to the right/bottom
+            const borderRight = c < n - 1 && puzzle.regions[r]?.[c + 1] !== currentReg;
+            const borderBottom = r < n - 1 && puzzle.regions[r + 1]?.[c] !== currentReg;
 
             const isHinted =
               activeHintCell?.row === r && activeHintCell?.col === c;
@@ -60,10 +58,8 @@ export const Grid: React.FC<GridProps> = ({
                 isHinted={isHinted}
                 isError={isError}
                 showSymbols={showSymbols}
-                borderTop={borderTop}
-                borderBottom={borderBottom}
-                borderLeft={borderLeft}
                 borderRight={borderRight}
+                borderBottom={borderBottom}
                 onPress={onCellPress}
               />
             );
@@ -78,13 +74,13 @@ const styles = StyleSheet.create({
   gridContainer: {
     alignSelf: 'center',
     backgroundColor: '#FFFFFF',
-    borderWidth: 3,
-    borderColor: '#2D3748',
-    borderRadius: 8,
+    borderWidth: 2.5,
+    borderColor: '#4A5568',
+    borderRadius: 14,
     overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 4,
   },
