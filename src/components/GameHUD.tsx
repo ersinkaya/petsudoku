@@ -14,6 +14,7 @@ interface GameHUDProps {
   pet: Pet;
   onExit: () => void;
   onSettings?: () => void;
+  onHelp?: () => void;
 }
 
 export const GameHUD: React.FC<GameHUDProps> = ({
@@ -26,6 +27,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   pet,
   onExit,
   onSettings,
+  onHelp,
 }) => {
   const petItem = PET_CONFIGS[pet] || PET_CONFIGS.cat;
   const petName = petItem.nameTr.toLowerCase();
@@ -60,10 +62,17 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           </View>
         </View>
 
-        {/* Settings Button */}
-        <TouchableOpacity style={styles.circleBtn} onPress={onSettings || onExit} activeOpacity={0.7}>
-          <Text style={styles.settingsIcon}>⚙️</Text>
-        </TouchableOpacity>
+        {/* Action Buttons: Help & Settings */}
+        <View style={styles.topActionsRow}>
+          {onHelp && (
+            <TouchableOpacity style={styles.circleBtn} onPress={onHelp} activeOpacity={0.7}>
+              <Text style={styles.helpIcon}>❓</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={styles.circleBtn} onPress={onSettings || onExit} activeOpacity={0.7}>
+            <Text style={styles.settingsIcon}>⚙️</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Lives / Treats Pill (Golden Fishes from screenshot) */}
@@ -133,6 +142,13 @@ const styles = StyleSheet.create({
   },
   settingsIcon: {
     fontSize: 20,
+  },
+  topActionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  helpIcon: {
+    fontSize: 18,
   },
   centerStats: {
     flexDirection: 'row',

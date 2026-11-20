@@ -79,6 +79,7 @@ export interface Stats {
 export interface Profile {
   pet: Pet | null;
   currentLevel: number;
+  hasSeenTutorial?: boolean;
   rewards: Record<string, number>;
   settings: {
     sound: boolean;

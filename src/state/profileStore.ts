@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import { GameResult, GameState, Pet, Profile, Stats } from '../engine/types';
+import { BadgeDefinition, checkNewBadges } from '../stats/badges';
 
 const PROFILE_STORAGE_KEY = '@pedsudoku_profile_v1';
 
@@ -55,6 +56,7 @@ const defaultStats: Stats = {
 const defaultProfile: Profile = {
   pet: null,
   currentLevel: 1,
+  hasSeenTutorial: false,
   rewards: {
     mouse: 0,
     bone: 0,
@@ -73,13 +75,21 @@ const defaultProfile: Profile = {
   },
 };
 
+export interface GameRecordReturn {
+  isNewHighScore: boolean;
+  isNewBestTime: boolean;
+  rankInSize: number;
+  newBadges: BadgeDefinition[];
+}
+
 interface ProfileActions {
   setPet: (pet: Pet) => void;
   advanceLevel: () => void;
+  setHasSeenTutorial: (seen: boolean) => void;
   addReward: (rewardId: string, count?: number) => void;
   updateSettings: (settings: Partial<Profile['settings']>) => void;
   saveGame: (game: GameState | null) => void;
-  recordGameResult: (result: GameResult) => { isNewHighScore: boolean; isNewBestTime: boolean };
+  recordGameResult: (result: GameResult) => GameRecordReturn;
   recordInterstitialShown: () => void;
   resetProgress: () => void;
 }
@@ -94,6 +104,8 @@ export const useProfileStore = create<ProfileStore>()(
       setPet: (pet: Pet) => set({ pet }),
 
       advanceLevel: () => set((state) => ({ currentLevel: state.currentLevel + 1 })),
+
+      setHasSeenTutorial: (hasSeenTutorial: boolean) => set({ hasSeenTutorial }),
 
       addReward: (rewardId: string, count: number = 1) =>
         set((state) => ({
@@ -110,7 +122,7 @@ export const useProfileStore = create<ProfileStore>()(
 
       saveGame: (savedGame) => set({ savedGame }),
 
-      recordGameResult: (result: GameResult) => {
+      recordGameResult: (result: GameResult): GameRecordReturn => {
         const state = get();
         const currentStats = state.stats || defaultStats;
         const size = result.size;
@@ -128,6 +140,8 @@ export const useProfileStore = create<ProfileStore>()(
           .sort((a, b) => b.score - a.score)
           .slice(0, 10);
 
+        const rankInSize = updatedList.findIndex((item) => item.playedAt === result.playedAt) + 1;
+
         // Update streak days
         const todayStr = new Date().toISOString().split('T')[0];
         let streakDays = currentStats.streakDays;
@@ -143,29 +157,51 @@ export const useProfileStore = create<ProfileStore>()(
           }
         }
 
-        set({
-          stats: {
-            ...currentStats,
-            totalScore: currentStats.totalScore + result.score,
-            bestBySize: {
-              ...currentStats.bestBySize,
-              [size]: updatedList,
-            },
-            bestTimeBySize: {
-              ...currentStats.bestTimeBySize,
-              [size]: isNewBestTime ? result.seconds : (currentBestTime ?? result.seconds),
-            },
-            streakGames: currentStats.streakGames + 1,
-            streakDays,
-            lastPlayedDay: todayStr,
+        const candidateStats: Stats = {
+          ...currentStats,
+          totalScore: currentStats.totalScore + result.score,
+          bestBySize: {
+            ...currentStats.bestBySize,
+            [size]: updatedList,
           },
+          bestTimeBySize: {
+            ...currentStats.bestTimeBySize,
+            [size]: isNewBestTime ? result.seconds : (currentBestTime ?? result.seconds),
+          },
+          streakGames: currentStats.streakGames + 1,
+          streakDays,
+          lastPlayedDay: todayStr,
+        };
+
+        // Check for new badges
+        const newBadges = checkNewBadges(
+          currentStats.badges || [],
+          result,
+          candidateStats,
+          state.rewards
+        );
+
+        const allBadgesSet = new Set([...(currentStats.badges || []), ...newBadges.map((b) => b.id)]);
+
+        const finalStats: Stats = {
+          ...candidateStats,
+          badges: Array.from(allBadgesSet),
+        };
+
+        set({
+          stats: finalStats,
           ads: {
             ...state.ads,
             levelsSinceInterstitial: state.ads.levelsSinceInterstitial + 1,
           },
         });
 
-        return { isNewHighScore, isNewBestTime };
+        return {
+          isNewHighScore,
+          isNewBestTime,
+          rankInSize: rankInSize > 0 ? rankInSize : 1,
+          newBadges,
+        };
       },
 
       recordInterstitialShown: () =>

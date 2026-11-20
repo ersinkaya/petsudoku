@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PET_CONFIGS } from '../assets/petConfig';
+import { TutorialModal } from '../components/TutorialModal';
 import { useProfileStore } from '../state/profileStore';
 
 interface SettingsScreenProps {
@@ -24,6 +25,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const settings = useProfileStore((state) => state.settings);
   const updateSettings = useProfileStore((state) => state.updateSettings);
   const resetProgress = useProfileStore((state) => state.resetProgress);
+
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const petInfo = PET_CONFIGS[pet];
 
@@ -121,6 +124,25 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </View>
         </View>
 
+        {/* Help & Tutorial */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>Rehber & Yardım</Text>
+          <TouchableOpacity
+            style={styles.petSettingCard}
+            onPress={() => setShowTutorial(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.petLeft}>
+              <Text style={styles.petEmoji}>📖</Text>
+              <View>
+                <Text style={styles.petName}>Nasıl Oynanır?</Text>
+                <Text style={styles.petSub}>Oyun kuralları ve taktik rehberi</Text>
+              </View>
+            </View>
+            <Text style={styles.chevron}>➔</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Danger Zone */}
         <View style={styles.section}>
           <TouchableOpacity style={styles.resetBtn} onPress={handleReset} activeOpacity={0.7}>
@@ -128,6 +150,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
           </TouchableOpacity>
         </View>
       </View>
+
+      <TutorialModal
+        visible={showTutorial}
+        pet={pet}
+        onClose={() => setShowTutorial(false)}
+      />
     </SafeAreaView>
   );
 };

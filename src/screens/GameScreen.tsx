@@ -6,9 +6,10 @@ import { GameHUD } from '../components/GameHUD';
 import { GameOverModal } from '../components/GameOverModal';
 import { Grid } from '../components/Grid';
 import { ResultModal } from '../components/ResultModal';
+import { TutorialModal } from '../components/TutorialModal';
 import { calculateScore } from '../stats/score';
 import { useGameStore } from '../state/gameStore';
-import { useProfileStore } from '../state/profileStore';
+import { GameRecordReturn, useProfileStore } from '../state/profileStore';
 import { Feedback } from '../utils/feedback';
 
 interface GameScreenProps {
@@ -22,6 +23,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const hapticsEnabled = useProfileStore((state) => state.settings.haptics);
   const soundEnabled = useProfileStore((state) => state.settings.sound);
   const currentLevel = useProfileStore((state) => state.currentLevel);
+  const hasSeenTutorial = useProfileStore((state) => state.hasSeenTutorial);
+  const setHasSeenTutorial = useProfileStore((state) => state.setHasSeenTutorial);
   const totalScore = useProfileStore((state) => state.stats.totalScore);
   const advanceLevel = useProfileStore((state) => state.advanceLevel);
   const addReward = useProfileStore((state) => state.addReward);
@@ -54,8 +57,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const tickElapsedSecond = useGameStore((state) => state.tickElapsedSecond);
 
   const [lastErrorCell, setLastErrorCell] = useState<{ row: number; col: number } | null>(null);
-  const [winRecordInfo, setWinRecordInfo] = useState<{ isNewHighScore: boolean; isNewBestTime: boolean } | null>(null);
+  const [winRecordInfo, setWinRecordInfo] = useState<GameRecordReturn | null>(null);
   const [calculatedScore, setCalculatedScore] = useState<number>(0);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Debounce & double-tap tracking refs
   const lastTapRef = useRef<{ row: number; col: number; time: number }>({
@@ -72,6 +76,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
       initNewGame({ level: currentLevel });
     }
   }, [currentLevel]);
+
+  // Show tutorial on Level 1-3 if not seen yet
+  useEffect(() => {
+    if (currentLevel <= 3 && !hasSeenTutorial) {
+      setShowTutorial(true);
+    }
+  }, [currentLevel, hasSeenTutorial]);
 
   // Card dealing sound effect when initial tiles appear
   useEffect(() => {
@@ -231,6 +242,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
           onOpenSettings?.();
         }}
+        onHelp={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          setShowTutorial(true);
+        }}
       />
 
       {/* Main Grid Area */}
@@ -268,15 +283,6 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         }}
       />
 
-      {/* Bottom Banner Area */}
-      <View style={styles.bottomBanner}>
-        <View style={styles.bannerInner}>
-          <Text style={styles.bannerBrand}>PedSudoku</Text>
-          <Text style={styles.bannerAdLabel}>AD</Text>
-          <Text style={styles.bannerText}>DenizBank • 100.000 TL Nakit Fırsatı!</Text>
-        </View>
-      </View>
-
       {/* Win Modal */}
       <ResultModal
         visible={isWon}
@@ -285,9 +291,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         heartsLeft={lives}
         hintsUsed={hintsUsed}
         level={currentLevel}
+        size={puzzle.size}
         pet={pet}
         isNewHighScore={winRecordInfo?.isNewHighScore}
         isNewBestTime={winRecordInfo?.isNewBestTime}
+        rankInSize={winRecordInfo?.rankInSize}
+        newBadges={winRecordInfo?.newBadges}
         onNextLevel={handleNextLevel}
         onDoubleRewardAd={handleDoubleReward}
         onHome={() => {
@@ -309,6 +318,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
           initNewGame(currentLevel);
           onBackToHome();
+        }}
+      />
+
+      {/* Tutorial Guide Modal (Level 1-3 or when '?' is pressed) */}
+      <TutorialModal
+        visible={showTutorial}
+        pet={pet}
+        onClose={() => {
+          setShowTutorial(false);
+          setHasSeenTutorial(true);
         }}
       />
     </SafeAreaView>
