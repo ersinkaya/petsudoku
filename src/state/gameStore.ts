@@ -39,6 +39,10 @@ export interface GameStoreState extends GameState {
     status: 'noop' | 'mark' | 'animal_correct' | 'animal_wrong' | 'cleared';
     conflicts?: ConflictDetail[];
   };
+  batchSetCellMarks: (
+    coords: Array<{ row: number; col: number }>,
+    targetState: 'mark' | 'empty'
+  ) => { changedCount: number };
   undo: () => boolean;
   useHint: () => CellCoord | null;
   clearActiveHint: () => void;
@@ -374,6 +378,49 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     });
 
     return { status: 'animal_correct' };
+  },
+
+  batchSetCellMarks: (
+    coords: Array<{ row: number; col: number }>,
+    targetState: 'mark' | 'empty'
+  ) => {
+    const state = get();
+    if (state.isWon || state.isGameOver) return { changedCount: 0 };
+
+    const newCells = state.cells.map((r) => [...r]);
+    const newActions: Action[] = [];
+    let changedCount = 0;
+
+    for (const { row, col } of coords) {
+      if (
+        row < 0 ||
+        row >= state.puzzle.size ||
+        col < 0 ||
+        col >= state.puzzle.size
+      ) {
+        continue;
+      }
+      const current = newCells[row][col];
+      // Never overwrite animals during a drag mark
+      if (current === 'animal') continue;
+
+      if (current !== targetState) {
+        newCells[row][col] = targetState;
+        newActions.push({ row, col, from: current, to: targetState });
+        changedCount++;
+      }
+    }
+
+    if (changedCount > 0) {
+      set({
+        cells: newCells,
+        undoStack: [...state.undoStack, ...newActions],
+        lastConflictDetails: null,
+        lastErrorMessage: null,
+      });
+    }
+
+    return { changedCount };
   },
 
   undo: () => {

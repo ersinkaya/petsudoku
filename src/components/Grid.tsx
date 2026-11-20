@@ -3,6 +3,7 @@ import {
   Animated,
   Dimensions,
   Easing,
+  PanResponder,
   StyleSheet,
   Text,
   View,
@@ -19,6 +20,10 @@ interface GridProps {
   lastErrorCell?: CellCoord | null;
   onCellPress: (row: number, col: number) => void;
   onCellLongPress?: (row: number, col: number) => void;
+  onDragMark?: (
+    coords: Array<{ row: number; col: number }>,
+    targetState: 'mark' | 'empty'
+  ) => void;
 }
 
 export const Grid: React.FC<GridProps> = ({
@@ -29,6 +34,7 @@ export const Grid: React.FC<GridProps> = ({
   lastErrorCell,
   onCellPress,
   onCellLongPress,
+  onDragMark,
 }) => {
   const n = puzzle.size;
   const screenWidth = Dimensions.get('window').width;
@@ -69,9 +75,8 @@ export const Grid: React.FC<GridProps> = ({
   // Precomputed staggered left-to-right slide animation for each column
   const colAnimStyles = useMemo(() => {
     return Array.from({ length: n }).map((_, c) => {
-      // Column stagger: left-most column starts at t=0, right-most column sweeps in progressively
       const start = (c / n) * 0.48;
-      const end = Math.min(1, start + 0.50);
+      const end = Math.min(1, start + 0.5);
 
       const translateX = dealAnim.interpolate({
         inputRange: [0, start, end, 1],
@@ -100,9 +105,177 @@ export const Grid: React.FC<GridProps> = ({
     outputRange: [0.35, 1, 1],
   });
 
+  // --- SWIPE / DRAG TO MARK LOGIC ---
+  const matrixRef = useRef<React.ElementRef<typeof View>>(null);
+  const matrixLayoutRef = useRef<{ pageX: number; pageY: number }>({
+    pageX: (screenWidth - cardWidth) / 2 + gridContainerPadding,
+    pageY: 0,
+  });
+
+  const dragModeRef = useRef<'mark' | 'empty' | null>(null);
+  const lastCellRef = useRef<{ row: number; col: number } | null>(null);
+
+  const cellsRef = useRef(cells);
+  cellsRef.current = cells;
+
+  const onDragMarkRef = useRef(onDragMark);
+  onDragMarkRef.current = onDragMark;
+
+  const measureMatrix = () => {
+    matrixRef.current?.measureInWindow((x: number, y: number) => {
+      if (x !== undefined && y !== undefined && (x > 0 || y > 0)) {
+        matrixLayoutRef.current = { pageX: x, pageY: y };
+      }
+    });
+  };
+
+  useEffect(() => {
+    const t1 = setTimeout(measureMatrix, 80);
+    const t2 = setTimeout(measureMatrix, 350);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [n, puzzle.seed]);
+
+  const getCellFromPosition = (
+    pageX: number,
+    pageY: number
+  ): { row: number; col: number } | null => {
+    const step = cellSize + cellGap;
+    const relX = pageX - matrixLayoutRef.current.pageX;
+    const relY = pageY - matrixLayoutRef.current.pageY;
+
+    const col = Math.floor(relX / step);
+    const row = Math.floor(relY / step);
+
+    if (row < 0 || row >= n || col < 0 || col >= n) {
+      // Small 12px margin outside borders to catch corner/edge swipes
+      if (
+        relX >= -12 &&
+        relX <= n * step + 12 &&
+        relY >= -12 &&
+        relY <= n * step + 12
+      ) {
+        return {
+          row: Math.max(0, Math.min(n - 1, row)),
+          col: Math.max(0, Math.min(n - 1, col)),
+        };
+      }
+      return null;
+    }
+    return { row, col };
+  };
+
+  // Interpolates between two cell coordinates so fast swipes don't skip cells in-between
+  const getInterpolatedLine = (
+    from: { row: number; col: number },
+    to: { row: number; col: number }
+  ): Array<{ row: number; col: number }> => {
+    const dr = to.row - from.row;
+    const dc = to.col - from.col;
+    const steps = Math.max(Math.abs(dr), Math.abs(dc));
+    if (steps === 0) return [to];
+
+    const result: Array<{ row: number; col: number }> = [];
+    for (let s = 1; s <= steps; s++) {
+      result.push({
+        row: Math.round(from.row + (dr * s) / steps),
+        col: Math.round(from.col + (dc * s) / steps),
+      });
+    }
+    return result;
+  };
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onStartShouldSetPanResponderCapture: () => false,
+
+        // Only capture once finger moves > 8 pixels (intentional swipe/drag)
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return (
+            Math.abs(gestureState.dx) > 8 || Math.abs(gestureState.dy) > 8
+          );
+        },
+        onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+          return (
+            Math.abs(gestureState.dx) > 8 || Math.abs(gestureState.dy) > 8
+          );
+        },
+
+        onPanResponderGrant: (_, gestureState) => {
+          measureMatrix();
+
+          // Identify cell at start (x0, y0)
+          const startCell = getCellFromPosition(
+            gestureState.x0,
+            gestureState.y0
+          );
+          if (!startCell) return;
+
+          const currentVal =
+            cellsRef.current[startCell.row]?.[startCell.col];
+          // If starting on a mark (X), drag clears marks along path back to empty
+          // If starting on empty, drag marks empty cells along path with X
+          const target = currentVal === 'mark' ? 'empty' : 'mark';
+          dragModeRef.current = target;
+          lastCellRef.current = startCell;
+
+          // Apply to the start cell immediately
+          onDragMarkRef.current?.([startCell], target);
+
+          // Also check where finger has already reached
+          const currCell = getCellFromPosition(
+            gestureState.moveX,
+            gestureState.moveY
+          );
+          if (
+            currCell &&
+            (currCell.row !== startCell.row || currCell.col !== startCell.col)
+          ) {
+            const line = getInterpolatedLine(startCell, currCell);
+            onDragMarkRef.current?.(line, target);
+            lastCellRef.current = currCell;
+          }
+        },
+
+        onPanResponderMove: (_, gestureState) => {
+          if (!dragModeRef.current || !lastCellRef.current) return;
+
+          const currCell = getCellFromPosition(
+            gestureState.moveX,
+            gestureState.moveY
+          );
+          if (!currCell) return;
+
+          if (
+            currCell.row !== lastCellRef.current.row ||
+            currCell.col !== lastCellRef.current.col
+          ) {
+            const line = getInterpolatedLine(lastCellRef.current, currCell);
+            onDragMarkRef.current?.(line, dragModeRef.current);
+            lastCellRef.current = currCell;
+          }
+        },
+
+        onPanResponderRelease: () => {
+          dragModeRef.current = null;
+          lastCellRef.current = null;
+        },
+        onPanResponderTerminate: () => {
+          dragModeRef.current = null;
+          lastCellRef.current = null;
+        },
+        onPanResponderTerminationRequest: () => false,
+      }),
+    [n, cellSize, cellGap]
+  );
+
   return (
     <View style={styles.wrapper}>
-      {/* Region Indicators Header (Cats row from screenshot) */}
+      {/* Region Indicators Header */}
       <View style={styles.notchHeader}>
         {Array.from({ length: n }).map((_, regIdx) => {
           const color = REGION_COLORS[regIdx % REGION_COLORS.length];
@@ -124,7 +297,7 @@ export const Grid: React.FC<GridProps> = ({
         })}
       </View>
 
-      {/* Main Grid Card with cards dealing from left to right */}
+      {/* Main Grid Card */}
       <Animated.View
         style={[
           styles.gridCard,
@@ -134,7 +307,12 @@ export const Grid: React.FC<GridProps> = ({
           },
         ]}
       >
-        <View style={[styles.gridMatrix, { gap: cellGap }]}>
+        <View
+          ref={matrixRef}
+          onLayout={measureMatrix}
+          {...panResponder.panHandlers}
+          style={[styles.gridMatrix, { gap: cellGap }]}
+        >
           {Array.from({ length: n }).map((_, r) => (
             <View key={`row-${r}`} style={[styles.row, { gap: cellGap }]}>
               {Array.from({ length: n }).map((_, c) => {

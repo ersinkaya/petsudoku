@@ -130,4 +130,64 @@ describe('Oyun Kuralları ve Durum Yönetimi (Stage 3 Game Rules)', () => {
     expect(useGameStore.getState().isWon).toBe(true);
     expect(useGameStore.getState().isGameOver).toBe(false);
   });
+
+  it('sürükleme (swipe/drag) ile birden fazla hücre tek hamlede X ile işaretlenebilmelidir', () => {
+    // 0. satırdaki 1, 2, 3 numaralı sütunları sürükleme ile işaretle
+    const res = useGameStore.getState().batchSetCellMarks(
+      [
+        { row: 0, col: 1 },
+        { row: 0, col: 2 },
+        { row: 0, col: 3 },
+      ],
+      'mark'
+    );
+
+    expect(res.changedCount).toBe(3);
+    expect(useGameStore.getState().cells[0][1]).toBe('mark');
+    expect(useGameStore.getState().cells[0][2]).toBe('mark');
+    expect(useGameStore.getState().cells[0][3]).toBe('mark');
+  });
+
+  it('sürükleme sırasında önceden konulmuş hayvan hücresinin üzerine gelinirse hayvan korunmalıdır', () => {
+    const puzzle = useGameStore.getState().puzzle;
+    const solCol = puzzle.solution[0];
+
+    // Önce doğru hayvanı yerleştir
+    useGameStore.getState().handleCellTap(0, solCol, 'place_animal');
+    expect(useGameStore.getState().cells[0][solCol]).toBe('animal');
+
+    // Şimdi tüm 0. satırı sürükleyerek X yapmayı dene
+    const allRow0 = [0, 1, 2, 3, 4].map((c) => ({ row: 0, col: c }));
+    const res = useGameStore.getState().batchSetCellMarks(allRow0, 'mark');
+
+    // Hayvan hücresi hariç 4 hücre işaretlenmeli
+    expect(res.changedCount).toBe(4);
+    // Hayvan hücresi kesinlikle korunmalı!
+    expect(useGameStore.getState().cells[0][solCol]).toBe('animal');
+  });
+
+  it('işaretli hücreler üzerinde ters yönde sürükleme yapılırsa temizlenebilmelidir', () => {
+    // Önce işaretle
+    useGameStore.getState().batchSetCellMarks(
+      [
+        { row: 1, col: 0 },
+        { row: 1, col: 1 },
+      ],
+      'mark'
+    );
+    expect(useGameStore.getState().cells[1][0]).toBe('mark');
+    expect(useGameStore.getState().cells[1][1]).toBe('mark');
+
+    // Temizleme sürüklemesi
+    const res = useGameStore.getState().batchSetCellMarks(
+      [
+        { row: 1, col: 0 },
+        { row: 1, col: 1 },
+      ],
+      'empty'
+    );
+    expect(res.changedCount).toBe(2);
+    expect(useGameStore.getState().cells[1][0]).toBe('empty');
+    expect(useGameStore.getState().cells[1][1]).toBe('empty');
+  });
 });

@@ -49,6 +49,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   // Store actions
   const initNewGame = useGameStore((state) => state.initNewGame);
   const handleCellTap = useGameStore((state) => state.handleCellTap);
+  const batchSetCellMarks = useGameStore((state) => state.batchSetCellMarks);
   const undo = useGameStore((state) => state.undo);
   const useHint = useGameStore((state) => state.useHint);
   const clearActiveHint = useGameStore((state) => state.clearActiveHint);
@@ -174,6 +175,23 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     }
   };
 
+  const handleDragMark = (
+    coords: Array<{ row: number; col: number }>,
+    targetState: 'mark' | 'empty'
+  ) => {
+    if (activeHintCell) {
+      clearActiveHint();
+    }
+    const { changedCount } = batchSetCellMarks(coords, targetState);
+    if (changedCount > 0) {
+      if (targetState === 'mark') {
+        Feedback.mark(hapticsEnabled, soundEnabled);
+      } else {
+        Feedback.clear(hapticsEnabled, soundEnabled);
+      }
+    }
+  };
+
   const onCellLongPress = (row: number, col: number) => {
     if (activeHintCell) {
       clearActiveHint();
@@ -265,6 +283,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
             lastErrorCell={lastErrorCell}
             onCellPress={onCellPress}
             onCellLongPress={onCellLongPress}
+            onDragMark={handleDragMark}
           />
         )}
       </View>
