@@ -1,4 +1,4 @@
-// Audio build: neural combo v2
+// Audio build: neural adult arcade announcer v3
 import * as Haptics from 'expo-haptics';
 
 // Sound asset mapping
