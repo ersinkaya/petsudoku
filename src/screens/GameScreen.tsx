@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ComboBanner, ComboEvent } from '../components/ComboBanner';
 import { GameActions } from '../components/GameActions';
 import { GameHUD } from '../components/GameHUD';
 import { GameOverModal } from '../components/GameOverModal';
@@ -77,6 +78,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     col: -1,
     time: 0,
   });
+  const lastCorrectAnimalTimeRef = useRef<number>(0);
+  const comboCountRef = useRef<number>(0);
+  const [activeCombo, setActiveCombo] = useState<ComboEvent | null>(null);
   const lastUndoRef = useRef<number>(0);
   const lastDealtSeedRef = useRef<number | null>(null);
 
@@ -98,6 +102,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   useEffect(() => {
     if (puzzle.size > 0 && puzzle.seed !== lastDealtSeedRef.current) {
       lastDealtSeedRef.current = puzzle.seed;
+      comboCountRef.current = 0;
+      lastCorrectAnimalTimeRef.current = 0;
+      setActiveCombo(null);
       const timer = setTimeout(() => {
         Feedback.dealCards(hapticsEnabled, soundEnabled);
       }, 60);
@@ -183,10 +190,50 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     if (res.status === 'mark') {
       Feedback.mark(hapticsEnabled, soundEnabled);
     } else if (res.status === 'animal_correct') {
-      Feedback.correctAnimal(hapticsEnabled, soundEnabled);
+      const nowTime = Date.now();
+      const timeSinceLastAnimal = nowTime - lastCorrectAnimalTimeRef.current;
+      lastCorrectAnimalTimeRef.current = nowTime;
+
+      // If placed within 4.5 seconds of previous animal, trigger combo!
+      if (timeSinceLastAnimal <= 4500) {
+        comboCountRef.current += 1;
+      } else {
+        comboCountRef.current = 1;
+      }
+
+      const combo = comboCountRef.current;
+
+      if (combo >= 4) {
+        Feedback.comboUnbelievable(hapticsEnabled, soundEnabled);
+        setActiveCombo({
+          id: nowTime,
+          count: combo,
+          level: 'unbelievable',
+          text: 'Unbelievable!',
+        });
+      } else if (combo === 3) {
+        Feedback.comboAmazing(hapticsEnabled, soundEnabled);
+        setActiveCombo({
+          id: nowTime,
+          count: combo,
+          level: 'amazing',
+          text: 'Amazing!',
+        });
+      } else if (combo === 2) {
+        Feedback.comboGreat(hapticsEnabled, soundEnabled);
+        setActiveCombo({
+          id: nowTime,
+          count: combo,
+          level: 'great',
+          text: 'Great!',
+        });
+      } else {
+        Feedback.correctAnimal(hapticsEnabled, soundEnabled);
+      }
     } else if (res.status === 'cleared') {
       Feedback.clear(hapticsEnabled, soundEnabled);
     } else if (res.status === 'animal_wrong') {
+      comboCountRef.current = 0;
       Feedback.error(hapticsEnabled, soundEnabled);
       setLastErrorCell({ row, col });
       setTimeout(() => setLastErrorCell(null), 1200);
@@ -291,6 +338,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
           setShowTutorial(true);
         }}
       />
+
+      {/* Combo Banner Floating Popup */}
+      <ComboBanner combo={activeCombo} />
 
       {/* Main Grid Area */}
       <View style={styles.centerContainer}>

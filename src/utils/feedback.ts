@@ -11,6 +11,9 @@ const SOUNDS = {
   win: require('../../assets/sounds/win.wav'),
   click: require('../../assets/sounds/click.wav'),
   deal: require('../../assets/sounds/deal.wav'),
+  great: require('../../assets/sounds/great.wav'),
+  amazing: require('../../assets/sounds/amazing.wav'),
+  unbelievable: require('../../assets/sounds/unbelievable.wav'),
 };
 
 type SoundKey = keyof typeof SOUNDS;
@@ -194,6 +197,40 @@ export const Feedback = {
     }
     if (soundEnabled) {
       playSound('deal', 2);
+    }
+  },
+
+  // Combo announcement sounds (2x Great, 3x Amazing, 4x+ Unbelievable)
+  comboGreat(hapticsEnabled: boolean = true, soundEnabled: boolean = true) {
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } catch {}
+    }
+    if (soundEnabled) {
+      playSound('great', 1);
+    }
+  },
+
+  comboAmazing(hapticsEnabled: boolean = true, soundEnabled: boolean = true) {
+    if (hapticsEnabled) {
+      try {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy).catch(() => {});
+      } catch {}
+    }
+    if (soundEnabled) {
+      playSound('amazing', 1);
+    }
+  },
+
+  comboUnbelievable(hapticsEnabled: boolean = true, soundEnabled: boolean = true) {
+    if (hapticsEnabled) {
+      try {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      } catch {}
+    }
+    if (soundEnabled) {
+      playSound('unbelievable', 1);
     }
   },
 };
