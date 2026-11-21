@@ -13,10 +13,101 @@ interface GameHUDProps {
   maxLives?: number;
   pet: Pet;
   isDaily?: boolean;
+  placedAnimals?: number;
+  totalAnimals?: number;
   onExit: () => void;
   onSettings?: () => void;
   onHelp?: () => void;
+  onLeaderboard?: () => void;
 }
+
+const MiniRuleDiagram: React.FC<{ type: 'zone' | 'line' | 'neighbor' }> = ({ type }) => {
+  if (type === 'zone') {
+    return (
+      <View style={styles.miniDiagram}>
+        <View style={styles.miniRow}>
+          <View style={[styles.miniCell, styles.cellZone, styles.cellZoneDot]}>
+            <View style={styles.miniDot} />
+          </View>
+          <View style={[styles.miniCell, styles.cellZone]} />
+          <View style={styles.miniCell} />
+        </View>
+        <View style={styles.miniRow}>
+          <View style={[styles.miniCell, styles.cellZone]} />
+          <View style={[styles.miniCell, styles.cellZone]} />
+          <View style={styles.miniCell} />
+        </View>
+        <View style={styles.miniRow}>
+          <View style={styles.miniCell} />
+          <View style={styles.miniCell} />
+          <View style={styles.miniCell} />
+        </View>
+      </View>
+    );
+  }
+
+  if (type === 'line') {
+    return (
+      <View style={styles.miniDiagram}>
+        <View style={styles.miniRow}>
+          <View style={styles.miniCell} />
+          <View style={[styles.miniCell, styles.cellLine]} />
+          <View style={styles.miniCell} />
+        </View>
+        <View style={styles.miniRow}>
+          <View style={[styles.miniCell, styles.cellLine]} />
+          <View style={[styles.miniCell, styles.cellLine, styles.cellZoneDot]}>
+            <View style={styles.miniDot} />
+          </View>
+          <View style={[styles.miniCell, styles.cellLine]} />
+        </View>
+        <View style={styles.miniRow}>
+          <View style={styles.miniCell} />
+          <View style={[styles.miniCell, styles.cellLine]} />
+          <View style={styles.miniCell} />
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.miniDiagram}>
+      <View style={styles.miniRow}>
+        <View style={[styles.miniCell, styles.cellNoTouch]}>
+          <Text style={styles.miniX}>×</Text>
+        </View>
+        <View style={[styles.miniCell, styles.cellNoTouch]}>
+          <Text style={styles.miniX}>×</Text>
+        </View>
+        <View style={[styles.miniCell, styles.cellNoTouch]}>
+          <Text style={styles.miniX}>×</Text>
+        </View>
+      </View>
+      <View style={styles.miniRow}>
+        <View style={[styles.miniCell, styles.cellNoTouch]}>
+          <Text style={styles.miniX}>×</Text>
+        </View>
+        <View style={[styles.miniCell, styles.cellZoneDot]}>
+          <View style={styles.miniDot} />
+        </View>
+        <View style={[styles.miniCell, styles.cellNoTouch]}>
+          <Text style={styles.miniX}>×</Text>
+        </View>
+      </View>
+      <View style={styles.miniRow}>
+        <View style={[styles.miniCell, styles.cellNoTouch]}>
+          <Text style={styles.miniX}>×</Text>
+        </View>
+        <View style={[styles.miniCell, styles.cellNoTouch]}>
+          <Text style={styles.miniX}>×</Text>
+        </View>
+        <View style={[styles.miniCell, styles.cellNoTouch]}>
+          <Text style={styles.miniX}>×</Text>
+        </View>
+      </View>
+    </View>
+  );
+};
 
 export const GameHUD: React.FC<GameHUDProps> = ({
   level,
@@ -27,14 +118,18 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   maxLives = 3,
   pet,
   isDaily = false,
+  placedAnimals = 0,
+  totalAnimals,
   onExit,
   onSettings,
   onHelp,
+  onLeaderboard,
 }) => {
   const petItem = PET_CONFIGS[pet] || PET_CONFIGS.cat;
   const petName = petItem.nameTr.toLowerCase();
   const petPlural = pet === 'cat' ? 'Kediler' : `${petItem.nameTr}'ler`;
   const diffInfo = DIFFICULTY_CONFIG[difficulty] || DIFFICULTY_CONFIG.easy;
+  const targetCount = totalAnimals ?? size ?? 0;
 
   return (
     <View style={styles.container}>
@@ -68,8 +163,13 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           </View>
         </View>
 
-        {/* Action Buttons: Help & Settings */}
+        {/* Action Buttons: Leaderboard, Help & Settings */}
         <View style={styles.topActionsRow}>
+          {onLeaderboard && (
+            <TouchableOpacity style={styles.circleBtn} onPress={onLeaderboard} activeOpacity={0.7}>
+              <Text style={styles.leaderboardIcon}>👑</Text>
+            </TouchableOpacity>
+          )}
           {onHelp && (
             <TouchableOpacity style={styles.circleBtn} onPress={onHelp} activeOpacity={0.7}>
               <Text style={styles.helpIcon}>❓</Text>
@@ -81,34 +181,48 @@ export const GameHUD: React.FC<GameHUDProps> = ({
         </View>
       </View>
 
-      {/* Lives / Treats Pill (Golden Fishes from screenshot) */}
-      <View style={styles.treatsPill}>
-        {Array.from({ length: maxLives }).map((_, i) => {
-          const isAlive = i < lives;
-          return (
-            <Text key={`treat-${i}`} style={[styles.treatEmoji, !isAlive && styles.treatInactive]}>
-              {isAlive ? petItem.treatEmoji : '⚪'}
-            </Text>
-          );
-        })}
-      </View>
-
-      {/* Rules Reminder Card (from screenshot) */}
+      {/* Rules Reminder Card with 3x3 Mini Grid Diagrams (matches screenshot) */}
       <View style={styles.rulesCard}>
         <View style={styles.ruleItem}>
-          <Text style={styles.ruleMiniIcon}>🟨</Text>
+          <MiniRuleDiagram type="zone" />
           <Text style={styles.ruleText}>Renk başına 1 {petName}</Text>
         </View>
         <View style={styles.ruleDivider} />
         <View style={styles.ruleItem}>
-          <Text style={styles.ruleMiniIcon}>↔️</Text>
+          <MiniRuleDiagram type="line" />
           <Text style={styles.ruleText}>Sütun ve satır başına 1 {petName}</Text>
         </View>
         <View style={styles.ruleDivider} />
         <View style={styles.ruleItem}>
-          <Text style={styles.ruleMiniIcon}>🚫</Text>
+          <MiniRuleDiagram type="neighbor" />
           <Text style={styles.ruleText}>{petPlural} birbirine değemez</Text>
         </View>
+      </View>
+
+      {/* Progress & Lives Indicator Strip (matches screenshot under rule strip) */}
+      <View style={styles.trackerRow}>
+        {/* Left: Treats / Lives Counter */}
+        <View style={styles.livesBadge}>
+          <Text style={styles.livesEmoji}>{petItem.treatEmoji}</Text>
+          <Text style={styles.livesCount}>{lives}</Text>
+        </View>
+
+        {/* Right: Placed Animal Progress Silhouettes */}
+        {targetCount > 0 && (
+          <View style={styles.animalsTrack}>
+            {Array.from({ length: targetCount }).map((_, i) => {
+              const isPlaced = i < placedAnimals;
+              return (
+                <Text
+                  key={`pet-track-${i}`}
+                  style={[styles.trackPetEmoji, !isPlaced && styles.trackPetDimmed]}
+                >
+                  {petItem.emoji}
+                </Text>
+              );
+            })}
+          </View>
+        )}
       </View>
     </View>
   );
@@ -233,22 +347,119 @@ const styles = StyleSheet.create({
     borderColor: '#ECE4D8',
     marginBottom: 4,
   },
+  leaderboardIcon: {
+    fontSize: 20,
+  },
+  miniDiagram: {
+    width: 22,
+    height: 22,
+    backgroundColor: '#F5EFEB',
+    borderRadius: 4,
+    padding: 1.5,
+    justifyContent: 'space-between',
+    borderWidth: 0.8,
+    borderColor: '#E2D7CC',
+  },
+  miniRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    height: 5.5,
+  },
+  miniCell: {
+    width: 5.5,
+    height: 5.5,
+    backgroundColor: '#FAF7F4',
+    borderRadius: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cellZone: {
+    backgroundColor: '#FDE68A',
+  },
+  cellLine: {
+    backgroundColor: '#BFDBFE',
+  },
+  cellNoTouch: {
+    backgroundColor: '#FEE2E2',
+  },
+  cellZoneDot: {
+    backgroundColor: '#FED7AA',
+  },
+  miniDot: {
+    width: 3.5,
+    height: 3.5,
+    borderRadius: 1.75,
+    backgroundColor: '#9A3412',
+  },
+  miniX: {
+    fontSize: 6,
+    lineHeight: 6,
+    fontWeight: '900',
+    color: '#EF4444',
+  },
+  trackerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    marginTop: 4,
+  },
+  livesBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ECE4D8',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  livesEmoji: {
+    fontSize: 16,
+  },
+  livesCount: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#5D4037',
+  },
+  animalsTrack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 14,
+  },
+  trackPetEmoji: {
+    fontSize: 15,
+  },
+  trackPetDimmed: {
+    opacity: 0.2,
+  },
   ruleItem: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 4,
+    gap: 5,
+    paddingHorizontal: 2,
   },
   ruleMiniIcon: {
     fontSize: 13,
   },
   ruleText: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: '700',
     color: '#6D4C41',
     flexShrink: 1,
-    lineHeight: 13,
+    lineHeight: 12,
   },
   ruleDivider: {
     width: 1,

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PET_CONFIGS } from '../assets/petConfig';
+import { LeaderboardModal } from '../components/LeaderboardModal';
 import { DifficultyLevel } from '../engine/types';
 import { getDailyPuzzleConfig, getTodayDateString } from '../engine/daily';
 import { getPetProgression } from '../engine/petProgression';
@@ -62,6 +63,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>(() =>
     getDifficultyForLevel(currentLevel)
   );
+  const [leaderboardVisible, setLeaderboardVisible] = useState(false);
 
   const petInfo = PET_CONFIGS[pet];
   const petRewardCount = rewards[petInfo.rewardId] || 0;
@@ -408,6 +410,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
         {/* Menu Buttons Grid */}
         <View style={styles.menuGrid}>
+          <TouchableOpacity
+            style={styles.menuBtn}
+            onPress={() => {
+              Feedback.buttonPress(hapticsEnabled, soundEnabled);
+              setLeaderboardVisible(true);
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.menuEmoji}>👑</Text>
+            <Text style={styles.menuLabel}>Liderlik</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.menuBtn} onPress={onOpenRecords} activeOpacity={0.7}>
             <Text style={styles.menuEmoji}>🏆</Text>
             <Text style={styles.menuLabel}>Rekorlarım</Text>
@@ -424,6 +438,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* 3D Podium Daily Tournament Leaderboard */}
+      <LeaderboardModal
+        visible={leaderboardVisible}
+        onClose={() => setLeaderboardVisible(false)}
+      />
 
       {/* Placeholder Banner for Menus (Section 7.1) */}
       <View style={styles.bannerPlaceholder}>

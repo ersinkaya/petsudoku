@@ -7,6 +7,7 @@ import { GameActions } from '../components/GameActions';
 import { GameHUD } from '../components/GameHUD';
 import { GameOverModal } from '../components/GameOverModal';
 import { Grid } from '../components/Grid';
+import { LeaderboardModal } from '../components/LeaderboardModal';
 import { ResultModal } from '../components/ResultModal';
 import { TutorialModal } from '../components/TutorialModal';
 import { canShowInterstitial, InterstitialPlacement, RewardedPlacement } from '../services/adService';
@@ -113,6 +114,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const [winRecordInfo, setWinRecordInfo] = useState<GameRecordReturn | null>(null);
   const [calculatedScore, setCalculatedScore] = useState<number>(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [leaderboardVisible, setLeaderboardVisible] = useState(false);
   const [appState, setAppState] = useState<AppStateStatus>((AppState.currentState as AppStateStatus) || 'active');
 
   useEffect(() => {
@@ -454,6 +456,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         maxLives={3}
         pet={pet}
         isDaily={isDaily}
+        placedAnimals={placedAnimalsCount}
+        totalAnimals={puzzle.size || 0}
+        onLeaderboard={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          setLeaderboardVisible(true);
+        }}
         onExit={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
           if (!isWon && !isGameOver && puzzle.size > 0 && cells.length > 0) {
@@ -570,6 +578,12 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
           setHasSeenTutorial(true);
           trackEvent('tutorial_completed', { steps: 4 });
         }}
+      />
+
+      {/* Global 3D Podium Leaderboard Modal */}
+      <LeaderboardModal
+        visible={leaderboardVisible}
+        onClose={() => setLeaderboardVisible(false)}
       />
 
       {/* Unified Ad Simulation & Presentation Modal */}
