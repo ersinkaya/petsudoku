@@ -1,16 +1,24 @@
 import { SeededRNG } from './rng';
 import { countSolutions, solvePuzzle } from './solver';
 import { solveWithLogic } from './techniques';
-import { Puzzle, TechniqueDifficulty } from './types';
+import { DifficultyLevel, Puzzle, TechniqueDifficulty } from './types';
 
 export interface GenerationOptions {
   size: number;
   seed?: number;
+  requestedDifficulty?: DifficultyLevel;
   targetDifficulty?: {
     minTechnique?: TechniqueDifficulty;
     maxTechnique?: TechniqueDifficulty;
   };
   maxAttempts?: number;
+}
+
+export function techniqueToDifficultyLevel(maxTech: number): DifficultyLevel {
+  if (maxTech <= 2) return 'easy';
+  if (maxTech === 3) return 'medium';
+  if (maxTech === 4) return 'hard';
+  return 'master';
 }
 
 const ORTHOGONAL_DIRS = [
@@ -341,6 +349,7 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
       let solResult = solvePuzzle(size, regions, 2);
       if (solResult.count === 1) {
         const logic = solveWithLogic(size, regions, 5);
+        const actualDiff = techniqueToDifficultyLevel(logic.maxTechnique);
         const puzzleCandidate: Puzzle = {
           size,
           regions,
@@ -350,6 +359,9 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
             steps: logic.stepCount,
           },
           seed,
+          requestedDifficulty: options.requestedDifficulty,
+          actualDifficulty: actualDiff,
+          isFallback: false,
         };
         fallbackUniquePuzzle = puzzleCandidate;
 
@@ -376,6 +388,7 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
         solResult = solvePuzzle(size, regions, 2);
         if (solResult.count === 1) {
           const logic = solveWithLogic(size, regions, 5);
+          const actualDiff = techniqueToDifficultyLevel(logic.maxTechnique);
           const puzzleCandidate: Puzzle = {
             size,
             regions,
@@ -385,6 +398,9 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
               steps: logic.stepCount,
             },
             seed,
+            requestedDifficulty: options.requestedDifficulty,
+            actualDifficulty: actualDiff,
+            isFallback: false,
           };
           fallbackUniquePuzzle = puzzleCandidate;
 
@@ -402,7 +418,12 @@ export function generatePuzzle(options: GenerationOptions): Puzzle {
   }
 
   if (fallbackUniquePuzzle) {
-    return fallbackUniquePuzzle;
+    return {
+      ...fallbackUniquePuzzle,
+      isFallback: true,
+      requestedDifficulty: options.requestedDifficulty,
+      actualDifficulty: techniqueToDifficultyLevel(fallbackUniquePuzzle.difficulty.maxTechnique),
+    };
   }
 
   throw new Error(`Failed to generate puzzle of size ${size} after ${maxAttempts} attempts`);

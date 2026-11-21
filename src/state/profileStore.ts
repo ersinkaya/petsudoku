@@ -86,6 +86,12 @@ const defaultProfile: Profile = {
   },
 };
 
+export interface CompleteGameParams {
+  result: GameResult;
+  rewardId: string;
+  rewardCount?: number;
+}
+
 export interface GameRecordReturn {
   isNewHighScore: boolean;
   isNewBestTime: boolean;
@@ -100,6 +106,7 @@ interface ProfileActions {
   addReward: (rewardId: string, count?: number) => void;
   updateSettings: (settings: Partial<Profile['settings']>) => void;
   saveGame: (game: GameState | null) => void;
+  completeGame: (params: CompleteGameParams) => GameRecordReturn;
   recordGameResult: (result: GameResult) => GameRecordReturn;
   recordGameOver: () => void;
   recordInterstitialShown: () => void;
@@ -134,7 +141,7 @@ export const useProfileStore = create<ProfileStore>()(
 
       saveGame: (savedGame) => set({ savedGame }),
 
-      recordGameResult: (result: GameResult): GameRecordReturn => {
+      completeGame: ({ result, rewardId, rewardCount = 1 }: CompleteGameParams): GameRecordReturn => {
         const state = get();
         const currentStats = state.stats || defaultStats;
         const size = result.size;
@@ -185,12 +192,20 @@ export const useProfileStore = create<ProfileStore>()(
           lastPlayedDay: todayStr,
         };
 
-        // Check for new badges
+        // ATOMIC: Apply new reward count FIRST so badge check evaluates current win's reward
+        const updatedRewards = {
+          ...state.rewards,
+          ...(rewardId
+            ? { [rewardId]: (state.rewards[rewardId] || 0) + rewardCount }
+            : {}),
+        };
+
+        // Check for new badges using updatedRewards
         const newBadges = checkNewBadges(
           currentStats.badges || [],
           result,
           candidateStats,
-          state.rewards
+          updatedRewards
         );
 
         const allBadgesSet = new Set([...(currentStats.badges || []), ...newBadges.map((b) => b.id)]);
@@ -201,7 +216,9 @@ export const useProfileStore = create<ProfileStore>()(
         };
 
         set({
+          rewards: updatedRewards,
           stats: finalStats,
+          savedGame: null, // Game is completed, clear any in-progress saved game
           ads: {
             ...state.ads,
             levelsSinceInterstitial: state.ads.levelsSinceInterstitial + 1,
@@ -216,8 +233,17 @@ export const useProfileStore = create<ProfileStore>()(
         };
       },
 
+      recordGameResult: (result: GameResult): GameRecordReturn => {
+        return get().completeGame({
+          result,
+          rewardId: '',
+          rewardCount: 0,
+        });
+      },
+
       recordGameOver: () =>
         set((state) => ({
+          savedGame: null, // Game over, clear saved game
           stats: {
             ...(state.stats || defaultStats),
             streakGames: 0,
@@ -237,6 +263,34 @@ export const useProfileStore = create<ProfileStore>()(
     {
       name: PROFILE_STORAGE_KEY,
       storage: createJSONStorage(() => safeStorage),
+      version: 2,
+      migrate: (persistedState: any, version: number) => {
+        if (!version || version < 2) {
+          const raw = persistedState || {};
+          return {
+            ...defaultProfile,
+            ...raw,
+            stats: {
+              ...defaultStats,
+              ...(raw.stats || {}),
+              badges: raw.stats?.badges || [],
+              bestBySize: raw.stats?.bestBySize || {},
+              bestTimeBySize: raw.stats?.bestTimeBySize || {},
+            },
+            rewards: raw.rewards || defaultProfile.rewards,
+            settings: {
+              ...defaultProfile.settings,
+              ...(raw.settings || {}),
+            },
+            ads: {
+              ...defaultProfile.ads,
+              ...(raw.ads || {}),
+            },
+            savedGame: raw.savedGame || null,
+          };
+        }
+        return persistedState;
+      },
     }
   )
 );

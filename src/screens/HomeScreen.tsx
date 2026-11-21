@@ -40,10 +40,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const rewards = useProfileStore((state) => state.rewards);
   const totalScore = useProfileStore((state) => state.stats.totalScore);
   const streakGames = useProfileStore((state) => state.stats.streakGames);
+  const savedGame = useProfileStore((state) => state.savedGame);
+  const saveGame = useProfileStore((state) => state.saveGame);
   const hapticsEnabled = useProfileStore((state) => state.settings.haptics);
   const soundEnabled = useProfileStore((state) => state.settings.sound);
 
   const initNewGame = useGameStore((state) => state.initNewGame);
+  const loadSavedGame = useGameStore((state) => state.loadSavedGame);
 
   // Active selection for Quick Play (defaults to player's current campaign difficulty)
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>(() =>
@@ -90,6 +93,37 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     onPlay();
   };
 
+  const formatSavedTime = (totalSeconds: number) => {
+    const m = Math.floor(totalSeconds / 60);
+    const s = totalSeconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const handleResumeGame = () => {
+    if (!savedGame) return;
+    Feedback.buttonPress(hapticsEnabled, soundEnabled);
+    loadSavedGame(savedGame);
+    onPlay();
+  };
+
+  const handleDiscardSavedGame = () => {
+    Alert.alert(
+      'Yarım Kalan Oyunu Sil',
+      'Kaydedilmiş bulmacayı silip yeni bir oyuna başlamak istediğine emin misin?',
+      [
+        { text: 'Vazgeç', style: 'cancel' },
+        {
+          text: 'Sil ve Yeni Başlat',
+          style: 'destructive',
+          onPress: () => {
+            Feedback.buttonPress(hapticsEnabled, soundEnabled);
+            saveGame(null);
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Top Status Bar */}
@@ -122,6 +156,44 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {petInfo.rewardEmoji} {petRewardCount} {petInfo.rewardNameTr} Toplandı
           </Text>
         </View>
+
+        {/* 0. Yarım Kalan Oyun Kartı (Saved Game Resume) */}
+        {savedGame && savedGame.puzzle && (
+          <View style={styles.resumeCard}>
+            <View style={styles.resumeHeader}>
+              <View style={styles.resumeBadge}>
+                <Text style={styles.resumeBadgeText}>⏳ YARIM KALAN OYUN</Text>
+              </View>
+              <Text style={styles.resumeTimer}>⏱ {formatSavedTime(savedGame.elapsedSeconds || 0)}</Text>
+            </View>
+
+            <View style={styles.resumeBody}>
+              <Text style={styles.resumeInfoTitle}>
+                {petInfo.emoji} {savedGame.puzzle.size}x{savedGame.puzzle.size} • {savedGame.difficultyLevel ? DIFFICULTY_CONFIG[savedGame.difficultyLevel].nameTr : 'Bulmaca'}
+              </Text>
+              <Text style={styles.resumeHearts}>
+                {'❤️'.repeat(Math.max(0, savedGame.lives || 0))} {savedGame.lives || 0}/3 Can
+              </Text>
+            </View>
+
+            <View style={styles.resumeActions}>
+              <TouchableOpacity
+                style={styles.resumeBtnPlay}
+                onPress={handleResumeGame}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.resumeBtnPlayText}>▶ Devam Et</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.resumeBtnDiscard}
+                onPress={handleDiscardSavedGame}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.resumeBtnDiscardText}>Yeni Başlat</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* 1. Main Campaign Level Play Button */}
         <TouchableOpacity
@@ -336,6 +408,99 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#718096',
+  },
+  // Resume Saved Game Card
+  resumeCard: {
+    width: '100%',
+    backgroundColor: '#FFFDF5',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#ECC94B',
+    shadowColor: '#D69E2E',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  resumeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  resumeBadge: {
+    backgroundColor: '#FEFCBF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ECC94B',
+  },
+  resumeBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#744210',
+    letterSpacing: 0.5,
+  },
+  resumeTimer: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#975A16',
+  },
+  resumeBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  resumeInfoTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#2D3748',
+  },
+  resumeHearts: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#E53E3E',
+  },
+  resumeActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  resumeBtnPlay: {
+    flex: 2,
+    backgroundColor: '#D69E2E',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#D69E2E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  resumeBtnPlayText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  resumeBtnDiscard: {
+    flex: 1,
+    backgroundColor: '#EDF2F7',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#CBD5E0',
+  },
+  resumeBtnDiscardText: {
+    color: '#4A5568',
+    fontSize: 12,
+    fontWeight: '700',
   },
   // Campaign Button
   campaignBtn: {

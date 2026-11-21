@@ -15,6 +15,9 @@ export interface Puzzle {
   solution: number[]; // solution[r] = o satırdaki hayvanın sütunu
   difficulty: PuzzleDifficulty;
   seed: number;
+  requestedDifficulty?: DifficultyLevel;
+  actualDifficulty?: DifficultyLevel;
+  isFallback?: boolean;
 }
 
 export interface CellCoord {

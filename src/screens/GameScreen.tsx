@@ -29,7 +29,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const totalScore = useProfileStore((state) => state.stats.totalScore);
   const advanceLevel = useProfileStore((state) => state.advanceLevel);
   const addReward = useProfileStore((state) => state.addReward);
-  const recordGameResult = useProfileStore((state) => state.recordGameResult);
+  const completeGame = useProfileStore((state) => state.completeGame);
+  const saveGame = useProfileStore((state) => state.saveGame);
   const recordGameOver = useProfileStore((state) => state.recordGameOver);
 
   // Game store state
@@ -57,7 +58,10 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const clearActiveHint = useGameStore((state) => state.clearActiveHint);
   const continueWithRewardAd = useGameStore((state) => state.continueWithRewardAd);
   const addRewardHint = useGameStore((state) => state.addRewardHint);
-  const tickElapsedSecond = useGameStore((state) => state.tickElapsedSecond);
+  const getSnapshot = useGameStore((state) => state.getSnapshot);
+  const startTimer = useGameStore((state) => state.startTimer);
+  const pauseTimer = useGameStore((state) => state.pauseTimer);
+  const syncTimer = useGameStore((state) => state.syncTimer);
 
   const [lastErrorCell, setLastErrorCell] = useState<{ row: number; col: number } | null>(null);
   const [winRecordInfo, setWinRecordInfo] = useState<GameRecordReturn | null>(null);
@@ -68,9 +72,15 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       setAppState(nextAppState);
+      if (nextAppState !== 'active') {
+        const current = getSnapshot();
+        if (!isWon && !isGameOver && current.puzzle.size > 0 && current.cells.length > 0) {
+          saveGame(current);
+        }
+      }
     });
     return () => subscription.remove();
-  }, []);
+  }, [isWon, isGameOver]);
 
   // Debounce & double-tap tracking refs
   const lastTapRef = useRef<{ row: number; col: number; time: number }>({
@@ -112,13 +122,20 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     }
   }, [puzzle.seed, puzzle.size]);
 
-  // Timer interval: pauses on win, game-over, tutorial or background
+  // Wall-clock timestamp timer: immune to setInterval drift and micro-stalls
   useEffect(() => {
-    if (isWon || isGameOver || showTutorial || appState !== 'active') return;
+    if (isWon || isGameOver || showTutorial || appState !== 'active') {
+      pauseTimer();
+      return;
+    }
+    startTimer();
     const interval = setInterval(() => {
-      tickElapsedSecond();
-    }, 1000);
-    return () => clearInterval(interval);
+      syncTimer();
+    }, 500);
+    return () => {
+      clearInterval(interval);
+      pauseTimer();
+    };
   }, [isWon, isGameOver, showTutorial, appState]);
 
   // Handle Game Over
@@ -126,10 +143,11 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     if (isGameOver) {
       Feedback.error(hapticsEnabled, soundEnabled);
       recordGameOver();
+      saveGame(null);
     }
   }, [isGameOver]);
 
-  // Handle Win
+  // Handle Win (Atomic reward + badge evaluation via completeGame)
   useEffect(() => {
     if (isWon) {
       Feedback.win(hapticsEnabled, soundEnabled);
@@ -143,19 +161,22 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
       });
       setCalculatedScore(score);
 
-      const record = recordGameResult({
-        level: currentLevel,
-        size: puzzle.size,
-        score,
-        seconds: elapsedSeconds,
-        heartsLeft: lives,
-        hintsUsed,
-        playedAt: Date.now(),
+      const rewardId = pet === 'cat' ? 'mouse' : pet === 'dog' ? 'bone' : 'carrot';
+      const record = completeGame({
+        result: {
+          level: currentLevel,
+          size: puzzle.size,
+          score,
+          seconds: elapsedSeconds,
+          heartsLeft: lives,
+          hintsUsed,
+          playedAt: Date.now(),
+        },
+        rewardId,
+        rewardCount: 1,
       });
       setWinRecordInfo(record);
-
-      const rewardId = pet === 'cat' ? 'mouse' : pet === 'dog' ? 'bone' : 'carrot';
-      addReward(rewardId, 1);
+      saveGame(null);
     }
   }, [isWon]);
 
@@ -327,6 +348,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         pet={pet}
         onExit={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          if (!isWon && !isGameOver && puzzle.size > 0 && cells.length > 0) {
+            saveGame(getSnapshot());
+          }
           onBackToHome();
         }}
         onSettings={() => {

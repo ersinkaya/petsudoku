@@ -24,6 +24,9 @@ export interface GameStoreState extends GameState {
   lastErrorMessage: string | null;
 
   difficultyLevel: DifficultyLevel;
+  timerStartedAt: number | null;
+  accumulatedSeconds: number;
+
   // Actions
   initNewGame: (
     optionsOrLevel?: NewGameOptions | number,
@@ -31,6 +34,10 @@ export interface GameStoreState extends GameState {
     customSeed?: number
   ) => void;
   loadSavedGame: (saved: GameState) => void;
+  getSnapshot: () => GameState;
+  startTimer: () => void;
+  pauseTimer: () => void;
+  syncTimer: () => void;
   handleCellTap: (
     row: number,
     col: number,
@@ -177,6 +184,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   level: 1,
   difficultyLevel: 'easy',
   elapsedSeconds: 0,
+  timerStartedAt: null,
+  accumulatedSeconds: 0,
   isWon: false,
   isGameOver: false,
   activeHintCell: null,
@@ -212,6 +221,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const puzzle = generatePuzzle({
       size,
       seed,
+      requestedDifficulty: difficultyLevel,
       targetDifficulty: {
         minTechnique: targetDifficulty.minTechnique,
         maxTechnique: targetDifficulty.maxTechnique,
@@ -235,6 +245,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       level: currentLevel,
       difficultyLevel,
       elapsedSeconds: 0,
+      accumulatedSeconds: 0,
+      timerStartedAt: Date.now(),
       isWon: false,
       isGameOver: false,
       activeHintCell: null,
@@ -246,12 +258,64 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   loadSavedGame: (saved: GameState) => {
     set({
       ...saved,
+      accumulatedSeconds: saved.elapsedSeconds || 0,
+      elapsedSeconds: saved.elapsedSeconds || 0,
+      timerStartedAt: Date.now(),
       isWon: false,
       isGameOver: false,
       activeHintCell: null,
       lastConflictDetails: null,
       lastErrorMessage: null,
     });
+  },
+
+  getSnapshot: (): GameState => {
+    const s = get();
+    return {
+      puzzle: s.puzzle,
+      cells: s.cells.map((row) => [...row]),
+      lives: s.lives,
+      hintsLeft: s.hintsLeft,
+      hintsUsed: s.hintsUsed,
+      adContinueUsed: s.adContinueUsed,
+      adHintUsed: s.adHintUsed,
+      undoStack: [...s.undoStack],
+      level: s.level,
+      difficultyLevel: s.difficultyLevel,
+      elapsedSeconds: s.elapsedSeconds,
+    };
+  },
+
+  startTimer: () => {
+    const s = get();
+    if (!s.isWon && !s.isGameOver && s.timerStartedAt === null) {
+      set({ timerStartedAt: Date.now() });
+    }
+  },
+
+  pauseTimer: () => {
+    const s = get();
+    if (s.timerStartedAt !== null) {
+      const delta = Math.floor((Date.now() - s.timerStartedAt) / 1000);
+      const newAccum = s.accumulatedSeconds + Math.max(0, delta);
+      set({
+        timerStartedAt: null,
+        accumulatedSeconds: newAccum,
+        elapsedSeconds: newAccum,
+      });
+    }
+  },
+
+  syncTimer: () => {
+    const s = get();
+    if (s.isWon || s.isGameOver) return;
+    if (s.timerStartedAt !== null) {
+      const delta = Math.floor((Date.now() - s.timerStartedAt) / 1000);
+      const currentElapsed = s.accumulatedSeconds + Math.max(0, delta);
+      if (currentElapsed !== s.elapsedSeconds) {
+        set({ elapsedSeconds: currentElapsed });
+      }
+    }
   },
 
   handleCellTap: (
@@ -513,9 +577,6 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   },
 
   tickElapsedSecond: () => {
-    const state = get();
-    if (!state.isWon && !state.isGameOver) {
-      set({ elapsedSeconds: state.elapsedSeconds + 1 });
-    }
+    get().syncTimer();
   },
 }));
