@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { AppState, AppStateStatus, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GameActions } from '../components/GameActions';
 import { GameHUD } from '../components/GameHUD';
@@ -29,6 +29,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const advanceLevel = useProfileStore((state) => state.advanceLevel);
   const addReward = useProfileStore((state) => state.addReward);
   const recordGameResult = useProfileStore((state) => state.recordGameResult);
+  const recordGameOver = useProfileStore((state) => state.recordGameOver);
 
   // Game store state
   const puzzle = useGameStore((state) => state.puzzle);
@@ -61,6 +62,14 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const [winRecordInfo, setWinRecordInfo] = useState<GameRecordReturn | null>(null);
   const [calculatedScore, setCalculatedScore] = useState<number>(0);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [appState, setAppState] = useState<AppStateStatus>((AppState.currentState as AppStateStatus) || 'active');
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      setAppState(nextAppState);
+    });
+    return () => subscription.remove();
+  }, []);
 
   // Debounce & double-tap tracking refs
   const lastTapRef = useRef<{ row: number; col: number; time: number }>({
@@ -96,14 +105,22 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     }
   }, [puzzle.seed, puzzle.size]);
 
-  // Timer interval
+  // Timer interval: pauses on win, game-over, tutorial or background
   useEffect(() => {
-    if (isWon || isGameOver) return;
+    if (isWon || isGameOver || showTutorial || appState !== 'active') return;
     const interval = setInterval(() => {
       tickElapsedSecond();
     }, 1000);
     return () => clearInterval(interval);
-  }, [isWon, isGameOver]);
+  }, [isWon, isGameOver, showTutorial, appState]);
+
+  // Handle Game Over
+  useEffect(() => {
+    if (isGameOver) {
+      Feedback.error(hapticsEnabled, soundEnabled);
+      recordGameOver();
+    }
+  }, [isGameOver]);
 
   // Handle Win
   useEffect(() => {
@@ -152,8 +169,9 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     const currentCell = cells[row]?.[col] ?? 'empty';
     let res;
 
-    // Check if quick double-tap on same cell to place animal:
-    if (isSameCell && timeSinceLastTap < 350 && currentCell === 'mark') {
+    // Check if double-tap on same cell to place animal:
+    // Window extended from 350ms to 450ms so comfortable human double-taps work reliably
+    if (isSameCell && timeSinceLastTap < 450 && (currentCell === 'mark' || currentCell === 'empty')) {
       lastTapRef.current = { row: -1, col: -1, time: 0 };
       res = handleCellTap(row, col, 'place_animal', autoMark);
     } else {
@@ -237,7 +255,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const handleDoubleReward = () => {
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
     const rewardId = pet === 'cat' ? 'mouse' : pet === 'dog' ? 'bone' : 'carrot';
-    addReward(rewardId, 2);
+    // 1 reward already granted on win, adding 1 more doubles the reward to exactly 2
+    addReward(rewardId, 1);
     handleNextLevel();
   };
 

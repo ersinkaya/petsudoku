@@ -190,4 +190,26 @@ describe('Oyun Kuralları ve Durum Yönetimi (Stage 3 Game Rules)', () => {
     expect(useGameStore.getState().cells[1][0]).toBe('empty');
     expect(useGameStore.getState().cells[1][1]).toBe('empty');
   });
+
+  it('sürükleme ile birden fazla hücre işaretlendiğinde tek tıkla geri al tüm grubu geri almalıdır', () => {
+    useGameStore.getState().batchSetCellMarks(
+      [
+        { row: 2, col: 0 },
+        { row: 2, col: 1 },
+        { row: 2, col: 2 },
+      ],
+      'mark'
+    );
+    expect(useGameStore.getState().cells[2][0]).toBe('mark');
+    expect(useGameStore.getState().cells[2][1]).toBe('mark');
+    expect(useGameStore.getState().cells[2][2]).toBe('mark');
+
+    // Tek bir undo çağrısı ile tüm grup geri alınmalı
+    const undoRes = useGameStore.getState().undo();
+    expect(undoRes).toBe(true);
+
+    expect(useGameStore.getState().cells[2][0]).toBe('empty');
+    expect(useGameStore.getState().cells[2][1]).toBe('empty');
+    expect(useGameStore.getState().cells[2][2]).toBe('empty');
+  });
 });

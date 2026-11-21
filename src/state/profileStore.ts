@@ -47,6 +47,13 @@ const safeStorage: StateStorage = {
   },
 };
 
+function getLocalDayString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 const defaultStats: Stats = {
   totalScore: 0,
   bestBySize: {},
@@ -94,6 +101,7 @@ interface ProfileActions {
   updateSettings: (settings: Partial<Profile['settings']>) => void;
   saveGame: (game: GameState | null) => void;
   recordGameResult: (result: GameResult) => GameRecordReturn;
+  recordGameOver: () => void;
   recordInterstitialShown: () => void;
   resetProgress: () => void;
 }
@@ -146,13 +154,13 @@ export const useProfileStore = create<ProfileStore>()(
 
         const rankInSize = updatedList.findIndex((item) => item.playedAt === result.playedAt) + 1;
 
-        // Update streak days
-        const todayStr = new Date().toISOString().split('T')[0];
+        // Update streak days with local timezone
+        const todayStr = getLocalDayString();
         let streakDays = currentStats.streakDays;
         if (currentStats.lastPlayedDay !== todayStr) {
           const yesterday = new Date();
           yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = yesterday.toISOString().split('T')[0];
+          const yesterdayStr = getLocalDayString(yesterday);
 
           if (currentStats.lastPlayedDay === yesterdayStr) {
             streakDays += 1;
@@ -207,6 +215,14 @@ export const useProfileStore = create<ProfileStore>()(
           newBadges,
         };
       },
+
+      recordGameOver: () =>
+        set((state) => ({
+          stats: {
+            ...(state.stats || defaultStats),
+            streakGames: 0,
+          },
+        })),
 
       recordInterstitialShown: () =>
         set((state) => ({

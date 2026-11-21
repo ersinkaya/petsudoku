@@ -22,11 +22,19 @@ export interface CellCoord {
   col: number;
 }
 
+export interface CellChange {
+  row: number;
+  col: number;
+  from: CellState;
+  to: CellState;
+}
+
 export interface Action {
   row: number;
   col: number;
   from: CellState;
   to: CellState;
+  batch?: CellChange[];
 }
 
 export interface GameState {

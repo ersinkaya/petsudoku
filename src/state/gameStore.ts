@@ -3,6 +3,7 @@ import { generatePuzzle } from '../engine/generator';
 import { getNextLogicalHint } from '../engine/techniques';
 import {
   Action,
+  CellChange,
   CellCoord,
   CellState,
   ConflictDetail,
@@ -339,10 +340,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
     // CORRECT ANIMAL PLACEMENT
     newCells[row][col] = 'animal';
-    const newUndoStack: Action[] = [
-      ...state.undoStack,
-      { row, col, from: current, to: 'animal' },
-    ];
+    const allChanges: CellChange[] = [{ row, col, from: current, to: 'animal' }];
 
     // Optional Auto-Mark: mark same row, col, region, and 8-neighbors
     if (autoMarkEnabled) {
@@ -360,18 +358,26 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
 
             if (isSameRow || isSameCol || isSameReg || isAdj) {
               newCells[r][c] = 'mark';
-              newUndoStack.push({ row: r, col: c, from: 'empty', to: 'mark' });
+              allChanges.push({ row: r, col: c, from: 'empty', to: 'mark' });
             }
           }
         }
       }
     }
 
+    const animalAction: Action = {
+      row,
+      col,
+      from: current,
+      to: 'animal',
+      batch: allChanges,
+    };
+
     const won = isSolved(state.puzzle, newCells);
 
     set({
       cells: newCells,
-      undoStack: newUndoStack,
+      undoStack: [...state.undoStack, animalAction],
       isWon: won,
       lastConflictDetails: null,
       lastErrorMessage: null,
@@ -388,7 +394,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     if (state.isWon || state.isGameOver) return { changedCount: 0 };
 
     const newCells = state.cells.map((r) => [...r]);
-    const newActions: Action[] = [];
+    const newActions: CellChange[] = [];
     let changedCount = 0;
 
     for (const { row, col } of coords) {
@@ -412,9 +418,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     if (changedCount > 0) {
+      const batchAction: Action = {
+        row: newActions[0].row,
+        col: newActions[0].col,
+        from: newActions[0].from,
+        to: newActions[0].to,
+        batch: newActions,
+      };
+
       set({
         cells: newCells,
-        undoStack: [...state.undoStack, ...newActions],
+        undoStack: [...state.undoStack, batchAction],
         lastConflictDetails: null,
         lastErrorMessage: null,
       });
@@ -433,7 +447,13 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     const lastAction = newUndoStack.pop()!;
     const newCells = state.cells.map((r) => [...r]);
 
-    newCells[lastAction.row][lastAction.col] = lastAction.from;
+    if (lastAction.batch && lastAction.batch.length > 0) {
+      for (const change of lastAction.batch) {
+        newCells[change.row][change.col] = change.from;
+      }
+    } else {
+      newCells[lastAction.row][lastAction.col] = lastAction.from;
+    }
 
     set({
       cells: newCells,

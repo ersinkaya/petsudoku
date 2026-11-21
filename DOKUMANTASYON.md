@@ -3,7 +3,7 @@
 > **Sürüm:** 1.0.1 (Build 2)  
 > **Platformlar:** Android (Bağımsız APK) & iOS (Apple TestFlight & App Store)  
 > **Teknoloji:** React Native 0.88.1, Expo SDK 58, TypeScript (Strict), Zustand  
-> **Test Kapsamı:** Jest (29/29 birim testi başarılı)
+> **Test Kapsamı:** Jest (30/30 birim testi başarılı)
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## 2. Oyun Kuralları & Temel Mekanikler
 
-Bir PetSudoku tahtası $N \times N$ boyutunda bir ızgara ve $N$ adet renkli bölgeden oluşur ($N \in [4, 11]$).
+Bir PetSudoku tahtası $N \times N$ boyutunda bir ızgara ve $N$ adet renkli bölgeden oluşur ($N \in [5, 9]$).
 
 ```mermaid
 flowchart TD
@@ -163,9 +163,9 @@ src/
 │   ├── HomeScreen.tsx         # Seviye seçimi, maskot durumu, seri ve istatistik özeti
 │   ├── GameScreen.tsx         # Oyun tahtası, zamanlayıcı, canlar ve kontrol butonları
 │   ├── RecordsScreen.tsx      # Boyut Rekorları tablosu & Rozet Vitrini (Segmented)
-│   ├── SettingsScreen.tsx     # Ses, haptik, tema, "Nasıl Oynanır?" butonları
+│   ├── SettingsScreen.tsx     # Ses, haptik, otomatik işaretleme, "Nasıl Oynanır?" butonları
 │   ├── CollectionScreen.tsx   # Maskot mamaları ve ödül koleksiyonu
-│   └── PetSelectScreen.tsx    # Kedi (Mırmır), Köpek (Karabaş), Tavşan (Pamuk) seçimi
+│   └── PetSelectScreen.tsx    # Kedi (Cat), Köpek (Dog), Tavşan (Rabbit) seçimi
 │
 ├── components/
 │   ├── Grid.tsx               # Tahta matrisi, PanResponder sürükleme, dalga animasyonu
@@ -203,7 +203,7 @@ Oyuncu motivasyonunu artırmak amacıyla `src/stats/badges.ts` altında 7 adet r
 | **Hızlı Pati** | ⚡ | Bölümü 60 saniyeden kısa sürede tamamlama |
 | **3'lü Seri** | 🔥 | Arka arkaya 3 bölüm kazanma serisi yakalama |
 | **10'lu Seri** | 🌟 | Arka arkaya 10 bölüm kazanma serisi yakalama |
-| **Tüm Boyutlar Ustası** | 👑 | 4x4'ten 9x9'a kadar her boyutta en az bir oyun tamamlama |
+| **Tüm Boyutlar Ustası** | 👑 | 5x5'ten 9x9'a kadar her boyutta en az bir oyun tamamlama |
 | **Büyük Koleksiyoncu** | 🎁 | Toplam 10 veya daha fazla ödül maması biriktirme |
 
 Her oyun bitiminde `checkNewBadges` fonksiyonu çalışarak yeni kazanılan rozeti tespit eder ve `ResultModal` içinde kutlama kartıyla oyuncuya sunar.
