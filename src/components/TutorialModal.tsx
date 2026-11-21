@@ -51,7 +51,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
       icon: '🆓',
       summary: 'X işareti asla kalp götürmez, bol bol kullan!',
       detail:
-        'PedSudoku bir tahmin oyunu değil, mantık oyunudur. İhtimalleri elemek için X notlarını dilediğince kullanabilirsin.',
+        'PetSudoku bir tahmin oyunu değil, mantık oyunudur. İhtimalleri elemek için X notlarını dilediğince kullanabilirsin.',
     },
     {
       title: 'Komşuluk Yasağı (8 Yön)',

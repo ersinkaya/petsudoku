@@ -107,7 +107,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         showsVerticalScrollIndicator={false}
       >
         {/* Title */}
-        <Text style={styles.appTitle}>PedSudoku</Text>
+        <Text style={styles.appTitle}>PetSudoku</Text>
         <Text style={styles.appSubtitle}>Mantık & Sevimli Dostlar</Text>
 
         {/* Pet Avatar display */}

@@ -1,21 +1,21 @@
 {
   "expo": {
-    "name": "pedsudoku",
-    "slug": "pedsudoku",
+    "name": "PetSudoku",
+    "slug": "petsudoku",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.pedsudoku.app",
+      "bundleIdentifier": "com.petsudoku.app",
       "buildNumber": "1",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.pedsudoku.app",
+      "package": "com.petsudoku.app",
       "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

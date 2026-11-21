@@ -17,7 +17,7 @@ export interface LogicalSolveResult {
 }
 
 /**
- * Human-like logical solver that solves a PedSudoku/Queens puzzle step-by-step
+ * Human-like logical solver that solves a PetSudoku/Queens puzzle step-by-step
  * using deductive techniques (1 to 5) without backtracking.
  */
 export function solveWithLogic(

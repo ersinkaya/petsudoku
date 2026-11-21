@@ -4,7 +4,8 @@ import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import { GameResult, GameState, Pet, Profile, Stats } from '../engine/types';
 import { BadgeDefinition, checkNewBadges } from '../stats/badges';
 
-const PROFILE_STORAGE_KEY = '@pedsudoku_profile_v1';
+const PROFILE_STORAGE_KEY = '@petsudoku_profile_v1';
+const LEGACY_STORAGE_KEY = '@pedsudoku_profile_v1';
 
 // In-memory fallback in case native storage module is unavailable in certain testing environments
 const inMemoryCache = new Map<string, string>();
@@ -13,7 +14,10 @@ const safeStorage: StateStorage = {
   getItem: async (key: string): Promise<string | null> => {
     try {
       if (AsyncStorage) {
-        const value = await AsyncStorage.getItem(key);
+        let value = await AsyncStorage.getItem(key);
+        if (value === null && key === PROFILE_STORAGE_KEY) {
+          value = await AsyncStorage.getItem(LEGACY_STORAGE_KEY);
+        }
         if (value !== null) return value;
       }
     } catch (e) {
