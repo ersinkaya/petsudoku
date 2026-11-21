@@ -12,6 +12,12 @@ import {
 import { PET_CONFIGS } from '../assets/petConfig';
 import { Pet } from '../engine/types';
 
+const PET_IMAGES: Record<Pet, any> = {
+  cat: require('../../assets/images/sad_cat.png'),
+  dog: require('../../assets/images/sad_dog.png'),
+  rabbit: require('../../assets/images/sad_rabbit.png'),
+};
+
 export interface GameOverModalProps {
   visible: boolean;
   canWatchAdToContinue: boolean;
@@ -141,18 +147,11 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               { transform: [{ translateY: floatAnim }] },
             ]}
           >
-            {pet === 'cat' ? (
-              <Image
-                source={require('../../assets/images/sad_cat.png')}
-                style={styles.petImage}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={styles.fallbackPetBox}>
-                <Text style={styles.fallbackPetEmoji}>{petItem.emoji}</Text>
-                <Text style={styles.brokenTreatEmoji}>💔 {petItem.treatEmoji}</Text>
-              </View>
-            )}
+            <Image
+              source={PET_IMAGES[pet] || PET_IMAGES.cat}
+              style={styles.petImage}
+              resizeMode="contain"
+            />
           </Animated.View>
 
           {/* Remaining Count Badge */}
@@ -252,17 +251,6 @@ const styles = StyleSheet.create({
   petImage: {
     width: 250,
     height: 250,
-  },
-  fallbackPetBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fallbackPetEmoji: {
-    fontSize: 100,
-  },
-  brokenTreatEmoji: {
-    fontSize: 44,
-    marginTop: -10,
   },
   remainingBadge: {
     flexDirection: 'row',
