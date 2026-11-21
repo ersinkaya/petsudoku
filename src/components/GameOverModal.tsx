@@ -4,11 +4,13 @@ import {
   Easing,
   Image,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { PET_CONFIGS } from '../assets/petConfig';
 import { Pet } from '../engine/types';
 
@@ -123,85 +125,93 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
   const rewardAdText = `3 ${petItem.treatNameTr} Al`;
 
   return (
-    <Modal visible={visible} transparent animationType="none">
-      <View style={styles.overlay}>
-        <Animated.View
-          style={[
-            styles.container,
-            {
-              opacity: fadeAnim,
-              transform: [{ scale: scaleAnim }],
-            },
-          ]}
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
+      <SafeAreaView style={styles.overlay} edges={['top', 'bottom', 'left', 'right']}>
+        <ScrollView
+          style={styles.scrollWrapper}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
         >
-          {/* Top Title */}
-          <View style={styles.titleWrapper}>
-            <Text style={styles.titleShadow}>{titleText}</Text>
-            <Text style={styles.titleText}>{titleText}</Text>
-          </View>
-
-          {/* Sad Pet Character */}
           <Animated.View
             style={[
-              styles.characterContainer,
-              { transform: [{ translateY: floatAnim }] },
+              styles.container,
+              {
+                opacity: fadeAnim,
+                transform: [{ scale: scaleAnim }],
+              },
             ]}
           >
-            <Image
-              source={PET_IMAGES[pet] || PET_IMAGES.cat}
-              style={styles.petImage}
-              resizeMode="contain"
-            />
-          </Animated.View>
+            {/* Top Title */}
+            <View style={styles.titleWrapper}>
+              <Text style={styles.titleShadow}>{titleText}</Text>
+              <Text style={styles.titleText}>{titleText}</Text>
+            </View>
 
-          {/* Remaining Count Badge */}
-          <View style={styles.remainingBadge}>
-            <Text style={styles.remainingEmoji}>{petItem.emoji}</Text>
-            <Text style={styles.remainingLabel}>
-              Kalan:{' '}
-              <Text style={styles.remainingCount}>{remainingCount}</Text>
-            </Text>
-          </View>
-
-          {/* Primary Action: Watch Ad to Continue (3 Lives) */}
-          {canWatchAdToContinue && (
-            <Animated.View style={{ transform: [{ scale: pulseAnim }], width: '100%' }}>
-              <TouchableOpacity
-                style={styles.primaryAdBtn}
-                onPress={onWatchAd}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.primaryAdText}>{rewardAdText}</Text>
-                {/* Green AD Badge in top right corner */}
-                <View style={styles.adBadge}>
-                  <Text style={styles.adBadgePlayIcon}>▶</Text>
-                  <Text style={styles.adBadgeText}>AD</Text>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
-
-          {/* Secondary Action: Restart */}
-          <TouchableOpacity
-            style={styles.restartBtn}
-            onPress={handleRestart}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.restartBtnText}>Yeniden Başlat</Text>
-          </TouchableOpacity>
-
-          {/* Optional Home button */}
-          {onHome && (
-            <TouchableOpacity
-              style={styles.homeLinkBtn}
-              onPress={onHome}
-              activeOpacity={0.6}
+            {/* Sad Pet Character */}
+            <Animated.View
+              style={[
+                styles.characterContainer,
+                { transform: [{ translateY: floatAnim }] },
+              ]}
             >
-              <Text style={styles.homeLinkText}>Ana Ekrana Dön</Text>
+              <Image
+                source={PET_IMAGES[pet] || PET_IMAGES.cat}
+                style={styles.petImage}
+                resizeMode="contain"
+              />
+            </Animated.View>
+
+            {/* Remaining Count Badge */}
+            <View style={styles.remainingBadge}>
+              <Text style={styles.remainingEmoji}>{petItem.emoji}</Text>
+              <Text style={styles.remainingLabel}>
+                Kalan:{' '}
+                <Text style={styles.remainingCount}>{remainingCount}</Text>
+              </Text>
+            </View>
+
+            {/* Primary Action: Watch Ad to Continue (3 Lives) */}
+            {canWatchAdToContinue && (
+              <Animated.View style={{ transform: [{ scale: pulseAnim }], width: '100%' }}>
+                <TouchableOpacity
+                  style={styles.primaryAdBtn}
+                  onPress={onWatchAd}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.primaryAdText}>{rewardAdText}</Text>
+                  {/* Green AD Badge in top right corner */}
+                  <View style={styles.adBadge}>
+                    <Text style={styles.adBadgePlayIcon}>▶</Text>
+                    <Text style={styles.adBadgeText}>AD</Text>
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            )}
+
+            {/* Secondary Action: Restart */}
+            <TouchableOpacity
+              style={styles.restartBtn}
+              onPress={handleRestart}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.restartBtnText}>Yeniden Başlat</Text>
             </TouchableOpacity>
-          )}
-        </Animated.View>
-      </View>
+
+            {/* Optional Home button */}
+            {onHome && (
+              <TouchableOpacity
+                style={styles.homeLinkBtn}
+                onPress={onHome}
+                activeOpacity={0.6}
+              >
+                <Text style={styles.homeLinkText}>Ana Ekrana Dön</Text>
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -209,10 +219,18 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(8, 14, 26, 0.88)',
+    backgroundColor: 'rgba(8, 14, 26, 0.90)',
+  },
+  scrollWrapper: {
+    flex: 1,
+    width: '100%',
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
+    paddingVertical: 18,
   },
   container: {
     width: '100%',
@@ -220,20 +238,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titleWrapper: {
-    marginBottom: 20,
+    marginBottom: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   titleShadow: {
     position: 'absolute',
-    top: 3,
-    fontSize: 34,
+    top: 2,
+    fontSize: 32,
     fontWeight: '900',
     color: '#1B3E6D',
     letterSpacing: 0.5,
   },
   titleText: {
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '900',
     color: '#5BA8FF',
     textShadowColor: 'rgba(255, 255, 255, 0.4)',
@@ -242,15 +260,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   characterContainer: {
-    width: 250,
-    height: 250,
+    width: 200,
+    height: 200,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
   },
   petImage: {
-    width: 250,
-    height: 250,
+    width: 200,
+    height: 200,
   },
   remainingBadge: {
     flexDirection: 'row',
