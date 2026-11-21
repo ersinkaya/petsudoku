@@ -12,7 +12,7 @@
 ## 📲 İndirme ve Test Bağlantıları
 
 - 🍏 **iOS (TestFlight):** [https://testflight.apple.com/join/AyhG6xfm](https://testflight.apple.com/join/AyhG6xfm)
-- 🤖 **Android (Standalone APK):** [PetSudoku_v1.0.1.apk İndir](https://expo.dev/artifacts/eas/fKywW9KkR9PPKEz377ZlRatprG190ADz3rhEq3OT54U.apk)
+- 🤖 **Android (Standalone APK):** [PetSudoku_v1.0.2.apk İndir](https://expo.dev/artifacts/eas/XgrK9HdAc0ihkwlGdg4U2B9lk6_-uXCO-tbkYykuMjE.apk)
 
 ---
 

@@ -234,7 +234,8 @@ Proje hem Google Play hem de Apple App Store standartlarına tam uyumludur.
 * **Paket Kimliği:** `com.petsudoku.app`
 * **Profil:** `preview` (`buildType: "apk"`)
 * **Sonuç:** Kullanıcıların doğrudan telefonuna indirip kurabileceği bağımsız `.apk` çıktısı üretir.
-* **İndirme Linki:** [PedSudoku_v1.0.1.apk](https://expo.dev/artifacts/eas/fKywW9KkR9PPKEz377ZlRatprG190ADz3rhEq3OT54U.apk)
+* **Sürüm:** `1.0.2` (versionCode: `3`)
+* **İndirme Linki:** [PetSudoku_v1.0.2.apk](https://expo.dev/artifacts/eas/XgrK9HdAc0ihkwlGdg4U2B9lk6_-uXCO-tbkYykuMjE.apk)
 
 ### 🍏 iOS Dağıtımı (Apple TestFlight & App Store)
 * **Paket Kimliği (Bundle Identifier):** `com.petsudoku.app`
