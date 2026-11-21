@@ -29,7 +29,7 @@ export const PetSelectScreen: React.FC<PetSelectScreenProps> = ({
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <Text style={styles.title}>
-          {isSettingsMode ? 'Hayvanını Değiştir' : 'Yoldaşını Seç'}
+          {isSettingsMode ? 'Sevimli Dostunu Değiştir' : 'Sevimli Dostunu Seç'}
         </Text>
         <Text style={styles.subtitle}>
           Bulmacaları çözerken sana eşlik edecek sevimli dostunu seç:

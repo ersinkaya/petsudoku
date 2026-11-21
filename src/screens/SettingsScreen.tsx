@@ -61,7 +61,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <View style={styles.content}>
         {/* Active Pet Card */}
         <View style={styles.section}>
-          <Text style={styles.sectionHeader}>Aktif Yoldaş</Text>
+          <Text style={styles.sectionHeader}>Sevimli Dostun</Text>
           <TouchableOpacity
             style={styles.petSettingCard}
             onPress={onChangePet}
