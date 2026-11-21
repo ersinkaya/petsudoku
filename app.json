@@ -7,7 +7,9 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pedsudoku.app",
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.pedsudoku.app",
