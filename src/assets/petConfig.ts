@@ -6,6 +6,7 @@ export interface PetConfigItem {
   nameTr: string;
   emoji: string;
   treatEmoji: string; // Lives icon (e.g. 🐟 for cat, 🦴 for dog, 🥕 for rabbit)
+  treatNameTr: string;
   rewardId: string;
   rewardNameTr: string;
   rewardEmoji: string;
@@ -19,6 +20,7 @@ export const PET_CONFIGS: Record<Pet, PetConfigItem> = {
     nameTr: 'Kedi',
     emoji: '🐱',
     treatEmoji: '🐟',
+    treatNameTr: 'Balık',
     rewardId: 'mouse',
     rewardNameTr: 'Fare',
     rewardEmoji: '🐭',
@@ -30,6 +32,7 @@ export const PET_CONFIGS: Record<Pet, PetConfigItem> = {
     nameTr: 'Köpek',
     emoji: '🐶',
     treatEmoji: '🦴',
+    treatNameTr: 'Kemik',
     rewardId: 'bone',
     rewardNameTr: 'Kemik',
     rewardEmoji: '🦴',
@@ -41,6 +44,7 @@ export const PET_CONFIGS: Record<Pet, PetConfigItem> = {
     nameTr: 'Tavşan',
     emoji: '🐰',
     treatEmoji: '🥕',
+    treatNameTr: 'Havuç',
     rewardId: 'carrot',
     rewardNameTr: 'Havuç',
     rewardEmoji: '🥕',

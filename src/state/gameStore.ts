@@ -492,7 +492,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     set({
-      lives: 1,
+      lives: 3,
       isGameOver: false,
       adContinueUsed: true,
     });

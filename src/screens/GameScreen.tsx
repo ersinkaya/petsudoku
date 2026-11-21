@@ -260,6 +260,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     handleNextLevel();
   };
 
+  // Count remaining animals to place
+  const placedAnimalsCount = cells.reduce(
+    (acc, row) => acc + row.filter((c) => c === 'animal').length,
+    0
+  );
+  const remainingAnimals = Math.max(0, (puzzle.size || 0) - placedAnimalsCount);
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Top Header HUD */}
@@ -348,11 +355,16 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         visible={isGameOver}
         canWatchAdToContinue={!adContinueUsed}
         pet={pet}
+        remainingCount={remainingAnimals}
         onWatchAd={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
           continueWithRewardAd();
         }}
-        onGiveUp={() => {
+        onRestart={() => {
+          Feedback.buttonPress(hapticsEnabled, soundEnabled);
+          initNewGame(currentLevel);
+        }}
+        onHome={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
           initNewGame(currentLevel);
           onBackToHome();

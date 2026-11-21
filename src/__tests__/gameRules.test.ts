@@ -43,7 +43,7 @@ describe('Oyun Kuralları ve Durum Yönetimi (Stage 3 Game Rules)', () => {
     expect(useGameStore.getState().lastErrorMessage).toBe('Bu hamleyle bulmaca çözülemez hale gelirdi.');
   });
 
-  it('3. hatada oyun bitmeli ve ödüllü reklamla 1 kez 1 kalple devam edilebilmelidir', () => {
+  it('3. hatada oyun bitmeli ve ödüllü reklamla 1 kez 3 can ile devam edilebilmelidir', () => {
     const puzzle = useGameStore.getState().puzzle;
     const wrongCol0 = (puzzle.solution[0] + 1) % 5;
     const wrongCol1 = (puzzle.solution[1] + 1) % 5;
@@ -65,10 +65,10 @@ describe('Oyun Kuralları ve Durum Yönetimi (Stage 3 Game Rules)', () => {
     expect(useGameStore.getState().lives).toBe(0);
     expect(useGameStore.getState().isGameOver).toBe(true);
 
-    // Reklamla devam et
+    // Reklamla devam et (3 can al)
     const continued = useGameStore.getState().continueWithRewardAd();
     expect(continued).toBe(true);
-    expect(useGameStore.getState().lives).toBe(1);
+    expect(useGameStore.getState().lives).toBe(3);
     expect(useGameStore.getState().isGameOver).toBe(false);
 
     // Tekrar reklamla devam hakkı verilmemeli
