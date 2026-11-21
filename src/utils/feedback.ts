@@ -1,4 +1,4 @@
-// Audio build: neural adult arcade announcer v3
+// Audio build: pure melodic crystal arpeggios v4
 import * as Haptics from 'expo-haptics';
 
 // Sound asset mapping
