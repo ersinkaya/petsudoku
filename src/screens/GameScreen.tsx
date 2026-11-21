@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, AppStateStatus, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { AdModal } from '../components/AdModal';
 import { ComboBanner, ComboEvent } from '../components/ComboBanner';
 import { GameActions } from '../components/GameActions';
 import { GameHUD } from '../components/GameHUD';
@@ -8,6 +9,8 @@ import { GameOverModal } from '../components/GameOverModal';
 import { Grid } from '../components/Grid';
 import { ResultModal } from '../components/ResultModal';
 import { TutorialModal } from '../components/TutorialModal';
+import { canShowInterstitial, InterstitialPlacement, RewardedPlacement } from '../services/adService';
+import { trackEvent } from '../services/analytics';
 import { calculateScore } from '../stats/score';
 import { useGameStore } from '../state/gameStore';
 import { GameRecordReturn, useProfileStore } from '../state/profileStore';
@@ -33,6 +36,45 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const saveGame = useProfileStore((state) => state.saveGame);
   const recordGameOver = useProfileStore((state) => state.recordGameOver);
   const recordDailyCompleted = useProfileStore((state) => state.recordDailyCompleted);
+  const recordInterstitialShown = useProfileStore((state) => state.recordInterstitialShown);
+
+  // Ad Modal state & handlers
+  const [adModalVisible, setAdModalVisible] = useState(false);
+  const [adType, setAdType] = useState<'rewarded' | 'interstitial'>('rewarded');
+  const [adPlacement, setAdPlacement] = useState<RewardedPlacement | InterstitialPlacement>('continue_game');
+  const adOnRewardedRef = useRef<(() => void) | null>(null);
+  const adOnCloseRef = useRef<(() => void) | null>(null);
+
+  const openRewardedAd = (
+    placement: RewardedPlacement,
+    onRewarded: () => void,
+    onClose?: () => void
+  ) => {
+    setAdType('rewarded');
+    setAdPlacement(placement);
+    adOnRewardedRef.current = onRewarded;
+    adOnCloseRef.current = onClose || null;
+    setAdModalVisible(true);
+  };
+
+  const checkAndShowInterstitial = (
+    placement: InterstitialPlacement,
+    onFinished: () => void
+  ) => {
+    const adsState = useProfileStore.getState().ads;
+    if (canShowInterstitial(adsState.levelsSinceInterstitial, adsState.lastInterstitialAt)) {
+      setAdType('interstitial');
+      setAdPlacement(placement);
+      adOnRewardedRef.current = null;
+      adOnCloseRef.current = () => {
+        recordInterstitialShown();
+        onFinished();
+      };
+      setAdModalVisible(true);
+    } else {
+      onFinished();
+    }
+  };
 
   // Game store state
   const puzzle = useGameStore((state) => state.puzzle);
@@ -146,6 +188,13 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   useEffect(() => {
     if (isGameOver) {
       Feedback.error(hapticsEnabled, soundEnabled);
+      trackEvent('game_over', {
+        level: currentLevel,
+        size: puzzle.size,
+        difficulty: difficultyLevel,
+        seconds: elapsedSeconds,
+        heartsLeft: 0,
+      });
       recordGameOver();
       saveGame(null);
     }
@@ -183,6 +232,27 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         rewardId,
         rewardCount: 1,
       });
+
+      trackEvent('game_completed', {
+        level: currentLevel,
+        size: puzzle.size,
+        difficulty: difficultyLevel,
+        score,
+        seconds: elapsedSeconds,
+        heartsLeft: lives,
+        hintsUsed,
+        undosUsed,
+        isDaily: !!isDaily,
+      });
+
+      if (record.newBadges && record.newBadges.length > 0) {
+        record.newBadges.forEach((b) => {
+          trackEvent('achievement_unlocked', {
+            badgeId: b.id,
+            badgeTitle: b.titleTr,
+          });
+        });
+      }
 
       if (isDaily && dailyDate) {
         recordDailyCompleted({
@@ -273,6 +343,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     } else if (res.status === 'animal_wrong') {
       comboCountRef.current = 0;
       Feedback.error(hapticsEnabled, soundEnabled);
+      trackEvent('mistake_made', { row, col, heartsLeft: lives - 1 });
       setLastErrorCell({ row, col });
       setTimeout(() => setLastErrorCell(null), 1200);
     }
@@ -305,6 +376,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
       Feedback.correctAnimal(hapticsEnabled, soundEnabled);
     } else if (res.status === 'animal_wrong') {
       Feedback.error(hapticsEnabled, soundEnabled);
+      trackEvent('mistake_made', { row, col, heartsLeft: lives - 1 });
       setLastErrorCell({ row, col });
       setTimeout(() => setLastErrorCell(null), 1200);
     }
@@ -320,29 +392,47 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
     const success = undo();
     if (success) {
       Feedback.undo(hapticsEnabled, soundEnabled);
+      trackEvent('undo_used', { undosCount: undosUsed + 1 });
     }
   };
 
   const handleHint = () => {
+    if (hintsLeft <= 0) {
+      // Prompt rewarded ad for +1 hint
+      openRewardedAd('hint', () => {
+        addRewardHint();
+        Feedback.win(hapticsEnabled, soundEnabled);
+      });
+      return;
+    }
+
     const hint = useHint();
     if (hint) {
       Feedback.hint(hapticsEnabled, soundEnabled);
+      trackEvent('hint_used', {
+        hintsRemaining: hintsLeft - 1,
+        hintsUsed: hintsUsed + 1,
+      });
     }
   };
 
   const handleNextLevel = () => {
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
-    const nextLevel = currentLevel + 1;
-    advanceLevel();
-    initNewGame({ level: nextLevel });
+    checkAndShowInterstitial('level_complete', () => {
+      const nextLevel = currentLevel + 1;
+      advanceLevel();
+      initNewGame({ level: nextLevel });
+    });
   };
 
   const handleDoubleReward = () => {
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
-    const rewardId = pet === 'cat' ? 'mouse' : pet === 'dog' ? 'bone' : 'carrot';
-    // 1 reward already granted on win, adding 1 more doubles the reward to exactly 2
-    addReward(rewardId, 1);
-    handleNextLevel();
+    openRewardedAd('double_reward', () => {
+      const rewardId = pet === 'cat' ? 'mouse' : pet === 'dog' ? 'bone' : 'carrot';
+      // 1 reward already granted on win, adding 1 more doubles the reward to exactly 2
+      addReward(rewardId, 1);
+      handleNextLevel();
+    });
   };
 
   // Count remaining animals to place
@@ -439,28 +529,35 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         onDoubleRewardAd={handleDoubleReward}
         onHome={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
-          onBackToHome();
+          checkAndShowInterstitial('home_navigation', onBackToHome);
         }}
       />
 
       {/* Game Over Modal */}
       <GameOverModal
-        visible={isGameOver}
+        visible={isGameOver && !adModalVisible}
         canWatchAdToContinue={!adContinueUsed}
         pet={pet}
         remainingCount={remainingAnimals}
         onWatchAd={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
-          continueWithRewardAd();
+          openRewardedAd('continue_game', () => {
+            continueWithRewardAd();
+            Feedback.win(hapticsEnabled, soundEnabled);
+          });
         }}
         onRestart={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
-          initNewGame(currentLevel);
+          checkAndShowInterstitial('game_restart', () => {
+            initNewGame(currentLevel);
+          });
         }}
         onHome={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
-          initNewGame(currentLevel);
-          onBackToHome();
+          checkAndShowInterstitial('home_navigation', () => {
+            initNewGame(currentLevel);
+            onBackToHome();
+          });
         }}
       />
 
@@ -471,6 +568,27 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         onClose={() => {
           setShowTutorial(false);
           setHasSeenTutorial(true);
+          trackEvent('tutorial_completed', { steps: 4 });
+        }}
+      />
+
+      {/* Unified Ad Simulation & Presentation Modal */}
+      <AdModal
+        visible={adModalVisible}
+        type={adType}
+        placement={adPlacement}
+        onRewarded={() => {
+          if (adOnRewardedRef.current) {
+            adOnRewardedRef.current();
+            adOnRewardedRef.current = null;
+          }
+        }}
+        onClose={() => {
+          setAdModalVisible(false);
+          if (adOnCloseRef.current) {
+            adOnCloseRef.current();
+            adOnCloseRef.current = null;
+          }
         }}
       />
     </SafeAreaView>

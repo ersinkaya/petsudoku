@@ -3,6 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PET_CONFIGS } from '../assets/petConfig';
 import { Pet } from '../engine/types';
+import { trackEvent } from '../services/analytics';
 import { useProfileStore } from '../state/profileStore';
 
 interface PetSelectScreenProps {
@@ -21,6 +22,7 @@ export const PetSelectScreen: React.FC<PetSelectScreenProps> = ({
   const pets: Pet[] = ['cat', 'dog', 'rabbit'];
 
   const handleConfirm = () => {
+    trackEvent('pet_changed', { pet: selected, isSettingsMode });
     setPet(selected);
     onSelectComplete();
   };

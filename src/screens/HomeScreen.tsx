@@ -12,6 +12,7 @@ import { PET_CONFIGS } from '../assets/petConfig';
 import { DifficultyLevel } from '../engine/types';
 import { getDailyPuzzleConfig, getTodayDateString } from '../engine/daily';
 import { getPetProgression } from '../engine/petProgression';
+import { trackEvent } from '../services/analytics';
 import {
   DIFFICULTY_CONFIG,
   DIFFICULTY_UNLOCK_LEVELS,
@@ -73,6 +74,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   // 1. Play Campaign Level (random grid size, difficulty strictly follows player progression)
   const handlePlayCampaign = () => {
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
+    trackEvent('game_started', {
+      level: currentLevel,
+      difficulty: campaignDiffKey,
+      isDaily: false,
+      mode: 'campaign',
+    });
     initNewGame({
       level: currentLevel,
       difficulty: campaignDiffKey,
@@ -95,6 +102,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
 
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
+    trackEvent('difficulty_selected', { difficulty: diffKey });
+    trackEvent('game_started', {
+      level: currentLevel,
+      difficulty: diffKey,
+      isDaily: false,
+      mode: 'custom',
+    });
     setSelectedDifficulty(diffKey);
     initNewGame({
       level: currentLevel,
@@ -106,6 +120,17 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   // 3. Play Global Deterministic Daily Puzzle
   const handlePlayDaily = () => {
     Feedback.buttonPress(hapticsEnabled, soundEnabled);
+    trackEvent('daily_puzzle_started', {
+      dateStr: todayDateStr,
+      size: dailyConfig.size,
+      difficulty: dailyConfig.difficulty,
+    });
+    trackEvent('game_started', {
+      size: dailyConfig.size,
+      difficulty: dailyConfig.difficulty,
+      isDaily: true,
+      mode: 'daily',
+    });
     initNewGame({
       size: dailyConfig.size,
       difficulty: dailyConfig.difficulty,

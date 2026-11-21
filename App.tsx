@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { CollectionScreen } from './src/screens/CollectionScreen';
 import { GameScreen } from './src/screens/GameScreen';
@@ -7,6 +7,7 @@ import { HomeScreen } from './src/screens/HomeScreen';
 import { PetSelectScreen } from './src/screens/PetSelectScreen';
 import { RecordsScreen } from './src/screens/RecordsScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { trackEvent } from './src/services/analytics';
 import { useProfileStore } from './src/state/profileStore';
 
 type Screen = 'home' | 'game' | 'records' | 'collection' | 'settings' | 'change_pet';
@@ -14,6 +15,10 @@ type Screen = 'home' | 'game' | 'records' | 'collection' | 'settings' | 'change_
 export default function App() {
   const pet = useProfileStore((state) => state.pet);
   const [currentScreen, setCurrentScreen] = useState<Screen>('home');
+
+  useEffect(() => {
+    trackEvent('app_open', { timestamp: Date.now() });
+  }, []);
 
   // If no pet selected yet, force onboarding Pet Selection
   if (!pet) {
