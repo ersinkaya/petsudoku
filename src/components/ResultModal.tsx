@@ -20,6 +20,7 @@ interface ResultModalProps {
   level: number;
   size: number;
   pet: Pet;
+  isDaily?: boolean;
   isNewHighScore?: boolean;
   isNewBestTime?: boolean;
   rankInSize?: number;
@@ -38,6 +39,7 @@ export const ResultModal: React.FC<ResultModalProps> = ({
   level,
   size,
   pet,
+  isDaily = false,
   isNewHighScore,
   isNewBestTime,
   rankInSize,
@@ -93,9 +95,9 @@ export const ResultModal: React.FC<ResultModalProps> = ({
       <View style={styles.overlay}>
         <View style={styles.card}>
           <Text style={styles.confetti}>🎉 🌟 🎊</Text>
-          <Text style={styles.title}>Tebrikler!</Text>
+          <Text style={styles.title}>{isDaily ? 'Günün Zaferi!' : 'Tebrikler!'}</Text>
           <Text style={styles.subtitle}>
-            Seviye {level} Tamamlandı ({size}×{size})
+            {isDaily ? `📅 Günün Bulmacası Tamamlandı (${size}×${size})` : `Seviye ${level} Tamamlandı (${size}×${size})`}
           </Text>
 
           {/* Interactive Gift Box / Pet Eating Celebration */}

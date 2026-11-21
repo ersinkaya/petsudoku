@@ -12,6 +12,7 @@ interface GameHUDProps {
   lives: number;
   maxLives?: number;
   pet: Pet;
+  isDaily?: boolean;
   onExit: () => void;
   onSettings?: () => void;
   onHelp?: () => void;
@@ -25,6 +26,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({
   lives,
   maxLives = 3,
   pet,
+  isDaily = false,
   onExit,
   onSettings,
   onHelp,
@@ -43,11 +45,15 @@ export const GameHUD: React.FC<GameHUDProps> = ({
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
 
-        {/* Center: Bölüm, Boyut & Zorluk Rozeti */}
+        {/* Center: Bölüm/Günlük, Boyut & Zorluk Rozeti */}
         <View style={styles.centerStats}>
           <View style={styles.statCol}>
             <View style={styles.levelRow}>
-              <Text style={styles.statValue}>{level}</Text>
+              {isDaily ? (
+                <Text style={[styles.statValue, { fontSize: 16, color: '#6B46C1' }]}>📅 Günün Bulmacası</Text>
+              ) : (
+                <Text style={styles.statValue}>{level}</Text>
+              )}
               {size && <Text style={styles.sizeBadge}>{size}×{size}</Text>}
             </View>
             <View style={[styles.diffPill, { backgroundColor: diffInfo.lightColor }]}>

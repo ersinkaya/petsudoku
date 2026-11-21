@@ -10,6 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PET_CONFIGS } from '../assets/petConfig';
 import { DifficultyLevel } from '../engine/types';
+import { getDailyPuzzleConfig, getTodayDateString } from '../engine/daily';
+import { getPetProgression } from '../engine/petProgression';
 import {
   DIFFICULTY_CONFIG,
   DIFFICULTY_UNLOCK_LEVELS,
@@ -40,6 +42,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const rewards = useProfileStore((state) => state.rewards);
   const totalScore = useProfileStore((state) => state.stats.totalScore);
   const streakGames = useProfileStore((state) => state.stats.streakGames);
+  const dailyStats = useProfileStore((state) => state.dailyStats);
   const savedGame = useProfileStore((state) => state.savedGame);
   const saveGame = useProfileStore((state) => state.saveGame);
   const hapticsEnabled = useProfileStore((state) => state.settings.haptics);
@@ -48,6 +51,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const initNewGame = useGameStore((state) => state.initNewGame);
   const loadSavedGame = useGameStore((state) => state.loadSavedGame);
 
+  const todayDateStr = getTodayDateString();
+  const dailyConfig = getDailyPuzzleConfig(todayDateStr);
+  const isDailyDoneToday = dailyStats?.completedDates?.includes(todayDateStr) || false;
+  const todayDailyRecord = dailyStats?.history?.[todayDateStr];
+  const currentDailyStreak = dailyStats?.currentStreak || 0;
+
   // Active selection for Quick Play (defaults to player's current campaign difficulty)
   const [selectedDifficulty, setSelectedDifficulty] = useState<DifficultyLevel>(() =>
     getDifficultyForLevel(currentLevel)
@@ -55,6 +64,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const petInfo = PET_CONFIGS[pet];
   const petRewardCount = rewards[petInfo.rewardId] || 0;
+  const petProgress = getPetProgression(petRewardCount);
 
   const campaignDiffKey = getDifficultyForLevel(currentLevel);
   const campaignDiffInfo = DIFFICULTY_CONFIG[campaignDiffKey];
@@ -89,6 +99,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     initNewGame({
       level: currentLevel,
       difficulty: diffKey,
+    });
+    onPlay();
+  };
+
+  // 3. Play Global Deterministic Daily Puzzle
+  const handlePlayDaily = () => {
+    Feedback.buttonPress(hapticsEnabled, soundEnabled);
+    initNewGame({
+      size: dailyConfig.size,
+      difficulty: dailyConfig.difficulty,
+      seed: dailyConfig.seed,
+      isDaily: true,
+      dailyDate: todayDateStr,
     });
     onPlay();
   };
@@ -147,13 +170,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* Pet Avatar display */}
         <View style={styles.petAvatarBox}>
           <Text style={styles.petEmoji}>{petInfo.emoji}</Text>
-          <Text style={styles.petNameBadge}>{petInfo.nameTr}</Text>
+          <View style={styles.petBadgeRow}>
+            <Text style={styles.petNameBadge}>{petInfo.nameTr}</Text>
+            <Text style={styles.petLevelBadge}>
+              {petProgress.tierEmoji} {petProgress.titleTr}
+            </Text>
+          </View>
         </View>
 
         {/* Reward counter preview */}
         <View style={styles.rewardSummary}>
           <Text style={styles.rewardText}>
             {petInfo.rewardEmoji} {petRewardCount} {petInfo.rewardNameTr} Toplandı
+            {!petProgress.isMaxLevel && ` • Sv. ${petProgress.level + 1} için ${petProgress.treatsRemaining} kaldı`}
           </Text>
         </View>
 
@@ -192,6 +221,57 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <Text style={styles.resumeBtnDiscardText}>Yeni Başlat</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        )}
+
+        {/* 0.5. Günün Bulmacası Kartı (Daily Challenge) */}
+        {!isDailyDoneToday ? (
+          <View style={styles.dailyCard}>
+            <View style={styles.dailyHeaderRow}>
+              <View style={styles.dailyBadge}>
+                <Text style={styles.dailyBadgeText}>📅 GÜNÜN MÜCADELESİ</Text>
+              </View>
+              <View style={styles.dailyStreakPill}>
+                <Text style={styles.dailyStreakText}>🔥 {currentDailyStreak} Gün Seri</Text>
+              </View>
+            </View>
+
+            <Text style={styles.dailyDateTitle}>{dailyConfig.formattedDateTr}</Text>
+            <Text style={styles.dailyDescText}>
+              {petInfo.emoji} {dailyConfig.size}×{dailyConfig.size} • {DIFFICULTY_CONFIG[dailyConfig.difficulty].badgeEmoji} {DIFFICULTY_CONFIG[dailyConfig.difficulty].nameTr} • 2× Ödül Bonusu!
+            </Text>
+
+            <TouchableOpacity
+              style={styles.dailyPlayBtn}
+              onPress={handlePlayDaily}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.dailyPlayBtnText}>▶ Günün Bulmacasını Çöz</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.dailyCardDone}>
+            <View style={styles.dailyHeaderRow}>
+              <View style={styles.dailyBadgeDone}>
+                <Text style={styles.dailyBadgeDoneText}>✅ BUGÜNKÜ BULMACA TAMAMLANDI</Text>
+              </View>
+              <View style={styles.dailyStreakPill}>
+                <Text style={styles.dailyStreakText}>🔥 {currentDailyStreak} Gün Seri</Text>
+              </View>
+            </View>
+
+            <Text style={styles.dailyDateTitle}>{dailyConfig.formattedDateTr}</Text>
+            <Text style={styles.dailyDoneStats}>
+              ⏱ Süren: {formatSavedTime(todayDailyRecord?.seconds || 0)}  •  ⭐ {todayDailyRecord?.score || 0} Puan
+            </Text>
+
+            <TouchableOpacity
+              style={styles.dailyReplayBtn}
+              onPress={handlePlayDaily}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.dailyReplayBtnText}>Tekrar Oyna (Alıştırma)</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -391,15 +471,29 @@ const styles = StyleSheet.create({
   petEmoji: {
     fontSize: 70,
   },
+  petBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
   petNameBadge: {
     fontSize: 14,
     fontWeight: '800',
     color: '#4A5568',
     backgroundColor: '#EDF2F7',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 12,
-    marginTop: 4,
+  },
+  petLevelBadge: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#92400E',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
   },
   rewardSummary: {
     marginBottom: 18,
@@ -500,6 +594,133 @@ const styles = StyleSheet.create({
   resumeBtnDiscardText: {
     color: '#4A5568',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  // Daily Puzzle Cards
+  dailyCard: {
+    width: '100%',
+    backgroundColor: '#FAF5FF',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#D6BCFA',
+    shadowColor: '#805AD5',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  dailyCardDone: {
+    width: '100%',
+    backgroundColor: '#F0FFF4',
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1.5,
+    borderColor: '#9AE6B4',
+    shadowColor: '#38A169',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  dailyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  dailyBadge: {
+    backgroundColor: '#E9D8FD',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#D6BCFA',
+  },
+  dailyBadgeText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#553C9A',
+    letterSpacing: 0.5,
+  },
+  dailyBadgeDone: {
+    backgroundColor: '#C6F6D5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#9AE6B4',
+  },
+  dailyBadgeDoneText: {
+    fontSize: 11,
+    fontWeight: '900',
+    color: '#22543D',
+    letterSpacing: 0.5,
+  },
+  dailyStreakPill: {
+    backgroundColor: '#FFF5F5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FEB2B2',
+  },
+  dailyStreakText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#C53030',
+  },
+  dailyDateTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#2D3748',
+    marginBottom: 2,
+  },
+  dailyDescText: {
+    fontSize: 13,
+    color: '#6B46C1',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  dailyDoneStats: {
+    fontSize: 13,
+    color: '#2F855A',
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  dailyPlayBtn: {
+    width: '100%',
+    backgroundColor: '#805AD5',
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#6B46C1',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  dailyPlayBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  dailyReplayBtn: {
+    width: '100%',
+    backgroundColor: '#EDF2F7',
+    paddingVertical: 10,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#CBD5E0',
+  },
+  dailyReplayBtnText: {
+    color: '#4A5568',
+    fontSize: 13,
     fontWeight: '700',
   },
   // Campaign Button

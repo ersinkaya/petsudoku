@@ -18,6 +18,8 @@ export interface Puzzle {
   requestedDifficulty?: DifficultyLevel;
   actualDifficulty?: DifficultyLevel;
   isFallback?: boolean;
+  isDaily?: boolean;
+  dailyDate?: string | null;
 }
 
 export interface CellCoord {
@@ -46,12 +48,15 @@ export interface GameState {
   lives: number; // 3 ile başlar (reklamla devam sonrası 1)
   hintsLeft: number; // 2 ile başlar (reklamla +1 olabilir)
   hintsUsed: number; // puan cezası için
+  undosUsed?: number; // kaç kez undo kullanıldığı
   adContinueUsed: boolean; // 3. kalpte reklamla devam hakkı kullanıldı mı
   adHintUsed: boolean; // reklamla +1 ipucu hakkı kullanıldı mı
   undoStack: Action[];
   level: number;
   difficultyLevel?: DifficultyLevel;
   elapsedSeconds: number; // duraklatılabilir süre sayacı
+  isDaily?: boolean;
+  dailyDate?: string | null;
 }
 
 export interface ConflictDetail {
@@ -74,7 +79,26 @@ export interface GameResult {
   seconds: number;
   heartsLeft: number;
   hintsUsed: number;
+  undosUsed?: number;
+  difficulty?: DifficultyLevel;
   playedAt: number;
+  isDaily?: boolean;
+  dailyDate?: string;
+}
+
+export interface DailyRecord {
+  dateStr: string;
+  score: number;
+  seconds: number;
+  completedAt: number;
+}
+
+export interface DailyStats {
+  completedDates: string[]; // ['2026-11-21', ...]
+  history: Record<string, DailyRecord>;
+  currentStreak: number;
+  bestStreak: number;
+  lastCompletedDate: string | null;
 }
 
 export interface Stats {
@@ -99,5 +123,6 @@ export interface Profile {
   };
   savedGame: GameState | null;
   stats: Stats;
+  dailyStats: DailyStats;
   ads: AdState;
 }

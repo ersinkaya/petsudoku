@@ -32,6 +32,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const completeGame = useProfileStore((state) => state.completeGame);
   const saveGame = useProfileStore((state) => state.saveGame);
   const recordGameOver = useProfileStore((state) => state.recordGameOver);
+  const recordDailyCompleted = useProfileStore((state) => state.recordDailyCompleted);
 
   // Game store state
   const puzzle = useGameStore((state) => state.puzzle);
@@ -39,6 +40,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const lives = useGameStore((state) => state.lives);
   const hintsLeft = useGameStore((state) => state.hintsLeft);
   const hintsUsed = useGameStore((state) => state.hintsUsed);
+  const undosUsed = useGameStore((state) => state.undosUsed) || 0;
   const undoStack = useGameStore((state) => state.undoStack);
   const elapsedSeconds = useGameStore((state) => state.elapsedSeconds);
   const isWon = useGameStore((state) => state.isWon);
@@ -48,6 +50,8 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
   const adContinueUsed = useGameStore((state) => state.adContinueUsed);
   const adHintUsed = useGameStore((state) => state.adHintUsed);
   const difficultyLevel = useGameStore((state) => state.difficultyLevel);
+  const isDaily = useGameStore((state) => state.isDaily);
+  const dailyDate = useGameStore((state) => state.dailyDate);
 
   // Store actions
   const initNewGame = useGameStore((state) => state.initNewGame);
@@ -170,11 +174,24 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
           seconds: elapsedSeconds,
           heartsLeft: lives,
           hintsUsed,
+          undosUsed,
+          difficulty: difficultyLevel,
           playedAt: Date.now(),
+          isDaily,
+          dailyDate: dailyDate || undefined,
         },
         rewardId,
         rewardCount: 1,
       });
+
+      if (isDaily && dailyDate) {
+        recordDailyCompleted({
+          dateStr: dailyDate,
+          score,
+          seconds: elapsedSeconds,
+        });
+      }
+
       setWinRecordInfo(record);
       saveGame(null);
     }
@@ -346,6 +363,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         lives={lives}
         maxLives={3}
         pet={pet}
+        isDaily={isDaily}
         onExit={() => {
           Feedback.buttonPress(hapticsEnabled, soundEnabled);
           if (!isWon && !isGameOver && puzzle.size > 0 && cells.length > 0) {
@@ -412,6 +430,7 @@ export const GameScreen: React.FC<GameScreenProps> = ({ onBackToHome, onOpenSett
         level={currentLevel}
         size={puzzle.size}
         pet={pet}
+        isDaily={isDaily}
         isNewHighScore={winRecordInfo?.isNewHighScore}
         isNewBestTime={winRecordInfo?.isNewBestTime}
         rankInSize={winRecordInfo?.rankInSize}

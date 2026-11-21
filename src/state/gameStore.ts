@@ -26,6 +26,8 @@ export interface GameStoreState extends GameState {
   difficultyLevel: DifficultyLevel;
   timerStartedAt: number | null;
   accumulatedSeconds: number;
+  isDaily: boolean;
+  dailyDate: string | null;
 
   // Actions
   initNewGame: (
@@ -64,6 +66,8 @@ export interface NewGameOptions {
   size?: number;
   difficulty?: DifficultyLevel;
   seed?: number;
+  isDaily?: boolean;
+  dailyDate?: string;
 }
 
 export const DIFFICULTY_CONFIG: Record<
@@ -178,6 +182,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   lives: 3,
   hintsLeft: 2,
   hintsUsed: 0,
+  undosUsed: 0,
   adContinueUsed: false,
   adHintUsed: false,
   undoStack: [],
@@ -186,6 +191,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   elapsedSeconds: 0,
   timerStartedAt: null,
   accumulatedSeconds: 0,
+  isDaily: false,
+  dailyDate: null,
   isWon: false,
   isGameOver: false,
   activeHintCell: null,
@@ -209,6 +216,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     }
 
     const currentLevel = opts.level ?? get().level ?? 1;
+    const isDaily = opts.isDaily || false;
+    const dailyDate = opts.dailyDate || null;
     const levelConfig = getLevelConfig(currentLevel);
     const size = opts.size ?? (customSize || levelConfig.size);
     const difficultyLevel = opts.difficulty ?? levelConfig.difficulty;
@@ -229,6 +238,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       maxAttempts: 300,
     });
 
+    puzzle.isDaily = isDaily;
+    puzzle.dailyDate = dailyDate || undefined;
+
     const cells: CellState[][] = Array.from({ length: size }, () =>
       new Array(size).fill('empty')
     );
@@ -239,6 +251,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       lives: 3,
       hintsLeft: 2,
       hintsUsed: 0,
+      undosUsed: 0,
       adContinueUsed: false,
       adHintUsed: false,
       undoStack: [],
@@ -247,6 +260,8 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       elapsedSeconds: 0,
       accumulatedSeconds: 0,
       timerStartedAt: Date.now(),
+      isDaily,
+      dailyDate,
       isWon: false,
       isGameOver: false,
       activeHintCell: null,
@@ -258,9 +273,12 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
   loadSavedGame: (saved: GameState) => {
     set({
       ...saved,
+      undosUsed: saved.undosUsed || 0,
       accumulatedSeconds: saved.elapsedSeconds || 0,
       elapsedSeconds: saved.elapsedSeconds || 0,
       timerStartedAt: Date.now(),
+      isDaily: saved.isDaily || false,
+      dailyDate: saved.dailyDate || null,
       isWon: false,
       isGameOver: false,
       activeHintCell: null,
@@ -277,12 +295,15 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
       lives: s.lives,
       hintsLeft: s.hintsLeft,
       hintsUsed: s.hintsUsed,
+      undosUsed: s.undosUsed || 0,
       adContinueUsed: s.adContinueUsed,
       adHintUsed: s.adHintUsed,
       undoStack: [...s.undoStack],
       level: s.level,
       difficultyLevel: s.difficultyLevel,
       elapsedSeconds: s.elapsedSeconds,
+      isDaily: s.isDaily,
+      dailyDate: s.dailyDate || undefined,
     };
   },
 
@@ -522,6 +543,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
     set({
       cells: newCells,
       undoStack: newUndoStack,
+      undosUsed: (state.undosUsed || 0) + 1,
       lastConflictDetails: null,
       lastErrorMessage: null,
     });

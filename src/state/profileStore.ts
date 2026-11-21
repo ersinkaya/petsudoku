@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
-import { GameResult, GameState, Pet, Profile, Stats } from '../engine/types';
+import { DailyRecord, DailyStats, GameResult, GameState, Pet, Profile, Stats } from '../engine/types';
 import { BadgeDefinition, checkNewBadges } from '../stats/badges';
 
 const PROFILE_STORAGE_KEY = '@petsudoku_profile_v1';
@@ -64,6 +64,14 @@ const defaultStats: Stats = {
   badges: [],
 };
 
+export const defaultDailyStats: DailyStats = {
+  completedDates: [],
+  history: {},
+  currentStreak: 0,
+  bestStreak: 0,
+  lastCompletedDate: null,
+};
+
 const defaultProfile: Profile = {
   pet: null,
   currentLevel: 1,
@@ -80,6 +88,7 @@ const defaultProfile: Profile = {
   },
   savedGame: null,
   stats: defaultStats,
+  dailyStats: defaultDailyStats,
   ads: {
     levelsSinceInterstitial: 0,
     lastInterstitialAt: 0,
@@ -99,6 +108,12 @@ export interface GameRecordReturn {
   newBadges: BadgeDefinition[];
 }
 
+export interface DailyCompleteReturn {
+  isFirstToday: boolean;
+  bonusRewards: number;
+  currentStreak: number;
+}
+
 interface ProfileActions {
   setPet: (pet: Pet) => void;
   advanceLevel: () => void;
@@ -107,6 +122,7 @@ interface ProfileActions {
   updateSettings: (settings: Partial<Profile['settings']>) => void;
   saveGame: (game: GameState | null) => void;
   completeGame: (params: CompleteGameParams) => GameRecordReturn;
+  recordDailyCompleted: (params: { dateStr: string; score: number; seconds: number }) => DailyCompleteReturn;
   recordGameResult: (result: GameResult) => GameRecordReturn;
   recordGameOver: () => void;
   recordInterstitialShown: () => void;
@@ -200,12 +216,13 @@ export const useProfileStore = create<ProfileStore>()(
             : {}),
         };
 
-        // Check for new badges using updatedRewards
+        // Check for new badges using updatedRewards & dailyStats
         const newBadges = checkNewBadges(
           currentStats.badges || [],
           result,
           candidateStats,
-          updatedRewards
+          updatedRewards,
+          state.dailyStats
         );
 
         const allBadgesSet = new Set([...(currentStats.badges || []), ...newBadges.map((b) => b.id)]);
@@ -230,6 +247,92 @@ export const useProfileStore = create<ProfileStore>()(
           isNewBestTime,
           rankInSize: rankInSize > 0 ? rankInSize : 1,
           newBadges,
+        };
+      },
+
+      recordDailyCompleted: ({ dateStr, score, seconds }) => {
+        const state = get();
+        const daily = state.dailyStats || defaultDailyStats;
+        const alreadyDone = daily.completedDates.includes(dateStr);
+
+        const newRecord: DailyRecord = {
+          dateStr,
+          score,
+          seconds,
+          completedAt: Date.now(),
+        };
+
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = getLocalDayString(yesterday);
+
+        let newStreak = daily.currentStreak;
+        if (!alreadyDone) {
+          if (daily.lastCompletedDate === yesterdayStr) {
+            newStreak += 1;
+          } else if (daily.lastCompletedDate === dateStr) {
+            // Same day repeat
+          } else {
+            newStreak = 1;
+          }
+        }
+
+        const bestStreak = Math.max(daily.bestStreak, newStreak);
+        const updatedDates = alreadyDone ? daily.completedDates : [...daily.completedDates, dateStr];
+
+        const updatedDailyStats: DailyStats = {
+          completedDates: updatedDates,
+          history: {
+            ...daily.history,
+            [dateStr]: newRecord,
+          },
+          currentStreak: newStreak,
+          bestStreak,
+          lastCompletedDate: dateStr,
+        };
+
+        // 2x Bonus rewards for completing daily puzzle for the first time
+        const bonusRewards = alreadyDone ? 0 : 2;
+        const pet = state.pet || 'cat';
+        const rewardId = pet === 'cat' ? 'mouse' : pet === 'dog' ? 'bone' : 'carrot';
+        const updatedRewards = bonusRewards > 0 ? {
+          ...state.rewards,
+          [rewardId]: (state.rewards[rewardId] || 0) + bonusRewards,
+        } : state.rewards;
+
+        // Evaluate any daily badges earned
+        const checkBadges = checkNewBadges(
+          state.stats?.badges || [],
+          {
+            level: 1,
+            size: 6,
+            score,
+            seconds,
+            heartsLeft: 3,
+            hintsUsed: 0,
+            playedAt: Date.now(),
+            isDaily: true,
+            dailyDate: dateStr,
+          },
+          state.stats || defaultStats,
+          updatedRewards,
+          updatedDailyStats
+        );
+        const allBadgesSet = new Set([...(state.stats?.badges || []), ...checkBadges.map((b) => b.id)]);
+
+        set({
+          dailyStats: updatedDailyStats,
+          rewards: updatedRewards,
+          stats: {
+            ...(state.stats || defaultStats),
+            badges: Array.from(allBadgesSet),
+          },
+        });
+
+        return {
+          isFirstToday: !alreadyDone,
+          bonusRewards,
+          currentStreak: newStreak,
         };
       },
 
@@ -277,6 +380,7 @@ export const useProfileStore = create<ProfileStore>()(
               bestBySize: raw.stats?.bestBySize || {},
               bestTimeBySize: raw.stats?.bestTimeBySize || {},
             },
+            dailyStats: raw.dailyStats || defaultDailyStats,
             rewards: raw.rewards || defaultProfile.rewards,
             settings: {
               ...defaultProfile.settings,

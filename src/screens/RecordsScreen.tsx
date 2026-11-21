@@ -18,11 +18,26 @@ export const RecordsScreen: React.FC<RecordsScreenProps> = ({ onBack }) => {
   const stats = useProfileStore((state) => state.stats);
   const [selectedSize, setSelectedSize] = useState<number>(5);
   const [activeTab, setActiveTab] = useState<'records' | 'badges'>('records');
+  const [badgeCategory, setBadgeCategory] = useState<string>('all');
+
+  const badgeCategories = [
+    { id: 'all', label: 'Tümü' },
+    { id: 'skill', label: '🎯 Beceri' },
+    { id: 'speed', label: '⚡ Hız' },
+    { id: 'difficulty', label: '🥇 Zorluk' },
+    { id: 'streak', label: '🔥 Seri' },
+    { id: 'collection', label: '🧺 Ödüller' },
+  ];
 
   const sizes = [5, 6, 7, 8, 9];
   const list = stats.bestBySize[selectedSize] || [];
   const bestTime = stats.bestTimeBySize[selectedSize];
   const earnedBadgesSet = new Set(stats.badges || []);
+
+  const filteredBadges =
+    badgeCategory === 'all'
+      ? ALL_BADGES
+      : ALL_BADGES.filter((b) => b.category === badgeCategory);
 
   const formatTime = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -147,8 +162,38 @@ export const RecordsScreen: React.FC<RecordsScreenProps> = ({ onBack }) => {
         /* Badges Showcase Tab */
         <ScrollView style={styles.scrollList} contentContainerStyle={styles.scrollContent}>
           <Text style={styles.listTitle}>Kazanılan Başarı Rozetleri</Text>
+
+          {/* Badge Category Chips */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.chipScrollView}
+            contentContainerStyle={styles.chipContainer}
+          >
+            {badgeCategories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[
+                  styles.chipBtn,
+                  badgeCategory === cat.id && styles.chipBtnActive,
+                ]}
+                onPress={() => setBadgeCategory(cat.id)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    badgeCategory === cat.id && styles.chipTextActive,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
           <View style={styles.badgesGrid}>
-            {ALL_BADGES.map((badge) => {
+            {filteredBadges.map((badge) => {
               const isUnlocked = earnedBadgesSet.has(badge.id);
               return (
                 <View
@@ -459,5 +504,33 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#718096',
     lineHeight: 16,
+  },
+  chipScrollView: {
+    marginBottom: 14,
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingRight: 16,
+  },
+  chipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  chipBtnActive: {
+    backgroundColor: '#805AD5',
+    borderColor: '#805AD5',
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#4A5568',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
   },
 });
